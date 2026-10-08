@@ -2,7 +2,7 @@
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="dc-build" content="20261008203019">
+<meta name="dc-build" content="20261008203741">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>DigiClass | Learn • Practise • Explore • Excel</title>
 <meta name="description" content="DigiClass: notes, quizzes, solved questions and mock papers for Classes 11 and 12: Computer Science and Informatics Practices.">
@@ -1181,6 +1181,11 @@ dialog#fb::backdrop{background:rgba(5,8,18,.6);backdrop-filter:blur(4px)}
 @media print{.qtools,.rate,.discuss,.helpus{display:none!important}}
 
 .pp + .dash{display:none}
+.tmore{margin-top:28px;border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:0 16px}
+.tmore>summary{cursor:pointer;padding:14px 0;font-weight:700;color:var(--soft);list-style:revert;background:none;border:0}
+.tmore>summary small{font-weight:500;color:var(--muted)}
+.tmore[open]{padding-bottom:16px}
+:root .teacher-v details.tmore>summary,:root[data-theme] .teacher-v details.tmore>summary{background:none;border:0;margin:0;padding:14px 0;color:var(--soft);border-radius:0}
 
 /* ===== My Class (v8) ===== */
 .join{margin:22px 0 0;background:linear-gradient(120deg,rgba(22,224,161,.12),rgba(41,182,255,.10)),var(--surface);border:1.5px solid color-mix(in srgb,var(--mint) 45%,transparent);border-radius:22px;padding:18px 20px}
@@ -3614,6 +3619,7 @@ const DCP = (()=>{
     const tbl=(h,rows)=>rows.length?`<div class="tbl"><table><thead><tr>${h.map(x=>`<th>${x}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table></div>`:`<p class="meta">No data on this device yet.</p>`;
     return `<div class="wrap teacher-v">
       <div class="hub-head"><h1>👩‍🏫 Teacher dashboard</h1><p class="sec-sub">This page isn't in the menu, so keep the link to yourself. <b>My Class</b> shows live data from your Google Sheet: every student who joined, what they studied, quiz scores and feedback (your PIN is needed). Further down are the optional extra services and activity on this device only.</p></div>
+      <details class="tmore"><summary>Extra tools and this computer's own data <small>(not your class: open only if needed)</small></summary>
       <h2 class="t-h">Connections</h2>
       <div class="tconns">
         ${conn(GC,"Visit counter & analytics (GoatCounter)","Total visits, unique visitors, daily/weekly/monthly views, most viewed pages, subjects and chapters, quiz answers, searches.","Not connected: add your code in DC_CONFIG.analytics.goatcounter.")}
@@ -3634,6 +3640,7 @@ const DCP = (()=>{
       <h2 class="t-h">Messages from this device</h2>${tbl(["When","Type","Message","Status"],out.slice(-15).reverse().map(m=>`<tr><td>${esc(m.ts.slice(0,10))}</td><td>${esc(m.type)}${m.reason?` · ${esc(m.reason)}`:""}</td><td>${esc(m.message)}</td><td>${m.sent?"Sent · pending review":"Not sent (inbox not connected)"}</td></tr>`))}
       <h2 class="t-h">Ready for later</h2>
       <p class="meta">The code is organised so student accounts (Firebase or Supabase), an AI tutor, teacher replies and whole-class dashboards can be added without redesigning the site: every action already goes through one tracking function and one data store.</p>
+      </details>
     </div>`;
   }
 
