@@ -2,7 +2,7 @@
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="dc-build" content="20261008200445">
+<meta name="dc-build" content="20261008201533">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>DigiClass | Learn • Practise • Explore • Excel</title>
 <meta name="description" content="DigiClass: notes, quizzes, solved questions and mock papers for Classes 11 and 12: Computer Science and Informatics Practices.">
@@ -3697,7 +3697,8 @@ const DC_CLASS = {
   // Paste the Google Apps Script "Web app URL" here (ends with /exec):
   endpoint: "https://script.google.com/macros/s/AKfycbzpEpFmRbIbacu4-BgICaT3ZN8TIwOgti8pT76gmNmftQbSbJoErzM86G4ikxHgZEfFcg/exec",
   classes: ["11","12"],
-  genders: ["Boy","Girl"]
+  genders: ["Boy","Girl"],
+  subjects: ["Computer Science","Informatics Practices"]
 };
 
 const CLS = (()=>{
@@ -3709,13 +3710,13 @@ const CLS = (()=>{
 
   function send(event, data){
     const m = me(); if(!EP || !m) return;
-    const body = Object.assign({ kind:"activity", ts:new Date().toISOString(), name:m.name, cls:m.cls, sid:m.sid, g:m.g||"", event }, data||{});
+    const body = Object.assign({ kind:"activity", ts:new Date().toISOString(), name:m.name, cls:m.cls, sid:m.sid, g:m.g||"", sub:m.sub||"", event }, data||{});
     try{ fetch(EP, { method:"POST", mode:"no-cors", headers:{ "Content-Type":"text/plain;charset=utf-8" }, body:JSON.stringify(body) }).catch(()=>{}); }catch(e){}
   }
   function once(key, fn){ const s=store.get(K.sent,{}); if(s[key]) return; s[key]=1; const ks=Object.keys(s); if(ks.length>3000) delete s[ks[0]]; store.set(K.sent,s); fn(); }
   function feedback(item){
     const m = me()||{}; if(!EP) return false;
-    const body = Object.assign({ kind:"feedback" }, item, { name:item.name||m.name||"", cls:m.cls||"", sid:m.sid||"", g:m.g||"" });
+    const body = Object.assign({ kind:"feedback" }, item, { name:item.name||m.name||"", cls:m.cls||"", sid:m.sid||"", g:m.g||"", sub:m.sub||"" });
     try{ fetch(EP, { method:"POST", mode:"no-cors", headers:{ "Content-Type":"text/plain;charset=utf-8" }, body:JSON.stringify(body) }).catch(()=>{}); }catch(e){}
     return true;
   }
@@ -3743,25 +3744,26 @@ const CLS = (()=>{
   /* ---------- UI: join card, my class panel ---------- */
   function joinCard(where){
     const m = me();
-    if(m && m.g) return "";
+    if(m && m.g && m.sub) return "";
     const pv = m||{};
     return `<section class="join reveal" aria-label="Join your class">
-      <div class="join-t"><span class="join-ic" aria-hidden="true">🏫</span><div><h2>Join your class</h2><p>Tell us your first name, grade and whether you are a boy or girl so your teacher can see your progress and you can earn points and badges.${EP?"":" <em>(Your teacher hasn't connected the class sheet yet: your progress stays on this device.)</em>"}</p></div></div>
+      <div class="join-t"><span class="join-ic" aria-hidden="true">🏫</span><div><h2>Join your class</h2><p>Tell us your first name, grade, subject and whether you are a boy or girl so your teacher can see your progress and you can earn points and badges.${EP?"":" <em>(Your teacher hasn't connected the class sheet yet: your progress stays on this device.)</em>"}</p></div></div>
       <form class="join-f" data-join>
         <label>First name<input name="name" maxlength="20" required autocomplete="given-name" placeholder="e.g. Aisha" value="${esc(pv.name||"")}"></label>
         <label>Grade<select name="cls" required><option value="">Choose…</option>${DC_CLASS.classes.map(c=>`<option value="${c}" ${pv.cls===c?"selected":""}>Grade ${c}</option>`).join("")}</select></label>
+        <label>Subject<select name="sub" required><option value="">Choose…</option>${DC_CLASS.subjects.map(c=>`<option ${pv.sub===c?"selected":""}>${c}</option>`).join("")}</select></label>
         <label>Boy / Girl<select name="g" required><option value="">Choose…</option>${DC_CLASS.genders.map(c=>`<option ${pv.g===c?"selected":""}>${c}</option>`).join("")}</select></label>
         <button class="btn primary" type="submit">Join</button>
       </form>
-      <p class="join-safe">🛡️ Only your first name, grade and boy/girl are used. Don't enter your full name, email or phone number.</p>
+      <p class="join-safe">🛡️ Only your first name, grade, subject and boy/girl are used. Don't enter your full name, email or phone number.</p>
     </section>`;
   }
   function classPanel(){
-    const m = me(); if(!m || !m.g) return joinCard("me");
+    const m = me(); if(!m || !m.g || !m.sub) return joinCard("me");
     const {pts,badges} = points(), got = badges.filter(b=>b[3]);
     return `<section class="myclass reveal" aria-label="My class">
       <div class="mc-top"><div class="mc-av" aria-hidden="true">${esc(m.name.slice(0,1).toUpperCase())}</div>
-        <div class="mc-id"><b>${esc(m.name)}</b><span>Grade ${esc(m.cls)} · ${esc(m.g)} ${EP?"· ✅ connected to your teacher":"· saved on this device"}</span></div>
+        <div class="mc-id"><b>${esc(m.name)}</b><span>Grade ${esc(m.cls)} · ${esc(m.sub)} · ${esc(m.g)} ${EP?"· ✅ connected to your teacher":"· saved on this device"}</span></div>
         <div class="mc-pts"><b>${pts}</b><span>points</span></div>
         <button class="btn" data-leave title="Change name or class">Change</button></div>
       <div class="mc-badges">${badges.map(b=>`<span class="badge2 ${b[3]?"got":""}" title="${esc(b[2])}"><i aria-hidden="true">${b[0]}</i><b>${esc(b[1])}</b><small>${esc(b[2])}</small></span>`).join("")}</div>
@@ -3784,16 +3786,16 @@ const CLS = (()=>{
     const A = (TD.activity||[]).map(fixC), F = (TD.feedback||[]).map(fixC);
     const now=Date.now(), dayMs=864e5;
     const studs = {};
-    A.forEach(r=>{ const k=(r.sid||r.name+"|"+r.cls); const s=studs[k]||(studs[k]={name:r.name,cls:r.cls,g:"",first:r.ts,last:r.ts,opened:new Set(),done:new Set(),quiz:[],papers:[],days:new Set()});
-      if(r.ts<s.first) s.first=r.ts; if(r.ts>s.last) s.last=r.ts; s.days.add(String(r.ts).slice(0,10)); if(r.g) s.g=r.g;
+    A.forEach(r=>{ const k=(r.sid||r.name+"|"+r.cls); const s=studs[k]||(studs[k]={name:r.name,cls:r.cls,g:"",sub:"",first:r.ts,last:r.ts,opened:new Set(),done:new Set(),quiz:[],papers:[],days:new Set()});
+      if(r.ts<s.first) s.first=r.ts; if(r.ts>s.last) s.last=r.ts; s.days.add(String(r.ts).slice(0,10)); if(r.g) s.g=r.g; if(r.sub) s.sub=r.sub;
       if(r.event==="open") s.opened.add(r.chapter); if(r.event==="done") s.done.add(r.chapter); if(r.event==="undone") s.done.delete(r.chapter);
       if(r.event==="quiz") s.quiz.push(r); if(r.event==="paper") s.papers.push(r); });
     const list = Object.values(studs).sort((a,b)=>a.cls.localeCompare(b.cls)||a.name.localeCompare(b.name));
     const active = (d)=>list.filter(s=>now-new Date(s.last)<d*dayMs).length;
     const classes=[...new Set(list.map(s=>s.cls))].sort();
     const cf = TD.filter||"";
-    const gf = TD.gfilter||"";
-    const shown = list.filter(s=>(!cf||s.cls===cf)&&(!gf||s.g===gf));
+    const gf = TD.gfilter||"", sf = TD.sfilter||"";
+    const shown = list.filter(s=>(!cf||s.cls===cf)&&(!gf||s.g===gf)&&(!sf||s.sub===sf));
     const nB=list.filter(s=>s.g==="Boy").length, nG=list.filter(s=>s.g==="Girl").length;
     const qavg = s => { if(!s.quiz.length) return "–"; const p=s.quiz.reduce((n,q)=>n+(+q.score)/(+q.total||1),0)/s.quiz.length; return Math.round(p*100)+"%"; };
     const chOpen={}, chDone={}, chQ={};
@@ -3804,14 +3806,15 @@ const CLS = (()=>{
       <div class="pp-grid">
         <div class="pp-tile"><b>${list.length}</b><span>Students joined</span></div>
         <div class="pp-tile"><b>${nB} / ${nG}</b><span>Boys / Girls</span></div>
+        <div class="pp-tile"><b>${list.filter(s=>s.sub==="Computer Science").length} / ${list.filter(s=>s.sub==="Informatics Practices").length}</b><span>CS / IP students</span></div>
         <div class="pp-tile"><b>${active(1)}</b><span>Active today</span></div>
         <div class="pp-tile"><b>${active(7)}</b><span>Active this week</span></div>
         <div class="pp-tile"><b>${A.filter(r=>r.event==="done").length}</b><span>Chapters completed</span></div>
         <div class="pp-tile"><b>${A.filter(r=>r.event==="quiz").length}</b><span>Quizzes taken</span></div>
         <div class="pp-tile"><b>${F.length}</b><span>Feedback messages</span></div>
       </div>
-      <h3 class="t-h">Students <select class="tfilter" data-tfilter aria-label="Filter by grade"><option value="">All grades</option>${classes.map(c=>`<option value="${esc(c)}" ${c===cf?"selected":""}>Grade ${esc(c)}</option>`).join("")}</select> <select class="tfilter" data-tgfilter aria-label="Filter boys or girls"><option value="">Boys and girls</option>${DC_CLASS.genders.map(c=>`<option ${c===gf?"selected":""}>${c}</option>`).join("")}</select></h3>
-      ${shown.length?`<div class="tbl"><table><thead><tr><th>Name</th><th>Grade</th><th>Boy/Girl</th><th>Chapters read</th><th>Completed</th><th>Quizzes</th><th>Avg quiz</th><th>Mock papers</th><th>Days active</th><th>Last seen</th></tr></thead><tbody>${shown.map(s=>`<tr><td><b>${esc(s.name)}</b></td><td>${esc(s.cls)}</td><td>${esc(s.g||"–")}</td><td>${s.opened.size}</td><td>${s.done.size}</td><td>${s.quiz.length}</td><td>${qavg(s)}</td><td>${s.papers.length?s.papers.map(p=>`${esc(p.course)} ${p.score}/${p.total}`).join(", "):"–"}</td><td>${s.days.size}</td><td>${fmtD(s.last)}</td></tr>`).join("")}</tbody></table></div>`:`<p class="meta">No students have joined yet. Share the link and ask them to tap <b>Join your class</b> on the home page.</p>`}
+      <h3 class="t-h">Students <select class="tfilter" data-tfilter aria-label="Filter by grade"><option value="">All grades</option>${classes.map(c=>`<option value="${esc(c)}" ${c===cf?"selected":""}>Grade ${esc(c)}</option>`).join("")}</select> <select class="tfilter" data-tsfilter aria-label="Filter by subject"><option value="">All subjects</option>${DC_CLASS.subjects.map(c=>`<option ${c===sf?"selected":""}>${c}</option>`).join("")}</select> <select class="tfilter" data-tgfilter aria-label="Filter boys or girls"><option value="">Boys and girls</option>${DC_CLASS.genders.map(c=>`<option ${c===gf?"selected":""}>${c}</option>`).join("")}</select></h3>
+      ${shown.length?`<div class="tbl"><table><thead><tr><th>Name</th><th>Grade</th><th>Subject</th><th>Boy/Girl</th><th>Chapters read</th><th>Completed</th><th>Quizzes</th><th>Avg quiz</th><th>Mock papers</th><th>Days active</th><th>Last seen</th></tr></thead><tbody>${shown.map(s=>`<tr><td><b>${esc(s.name)}</b></td><td>${esc(s.cls)}</td><td>${esc(s.sub==="Computer Science"?"CS":s.sub==="Informatics Practices"?"IP":(s.sub||"–"))}</td><td>${esc(s.g||"–")}</td><td>${s.opened.size}</td><td>${s.done.size}</td><td>${s.quiz.length}</td><td>${qavg(s)}</td><td>${s.papers.length?s.papers.map(p=>`${esc(p.course)} ${p.score}/${p.total}`).join(", "):"–"}</td><td>${s.days.size}</td><td>${fmtD(s.last)}</td></tr>`).join("")}</tbody></table></div>`:`<p class="meta">No students have joined yet. Share the link and ask them to tap <b>Join your class</b> on the home page.</p>`}
       <h3 class="t-h">Most studied chapters</h3>
       ${chRows.length?`<div class="tbl"><table><thead><tr><th>Chapter</th><th>Students who opened</th><th>Completed</th><th>Avg quiz</th></tr></thead><tbody>${chRows.map(id=>`<tr><td>${esc(CHBY[id].title)} <small>(${CHBY[id].course.short} ${CHBY[id].course.grade})</small></td><td>${chOpen[id].size}</td><td>${chDone[id]?chDone[id].size:0}</td><td>${chQ[id]?Math.round(chQ[id].p/chQ[id].n*100)+"%":"–"}</td></tr>`).join("")}</tbody></table></div>`:`<p class="meta">No chapter activity yet.</p>`}
       ${hardQ.length?`<h3 class="t-h">Chapters that need re-teaching (lowest quiz scores)</h3><div class="tbl"><table><thead><tr><th>Chapter</th><th>Avg score</th><th>Attempts</th></tr></thead><tbody>${hardQ.map(([id,p,n])=>`<tr><td>${esc(CHBY[id].title)}</td><td>${p}%</td><td>${n}</td></tr>`).join("")}</tbody></table></div>`:""}
@@ -3823,11 +3826,11 @@ const CLS = (()=>{
   function loadTD(pin, cb){
     fetch(`${EP}?action=summary&pin=${encodeURIComponent(pin)}`).then(r=>r.json()).then(j=>{
       if(j.error){ cb(j.error==="pin"?"Wrong PIN.":"Error: "+j.error); return; }
-      store.set(K.pin,pin); TD={activity:j.activity||[],feedback:j.feedback||[],filter:TD&&TD.filter||"",gfilter:TD&&TD.gfilter||""}; cb(null);
+      store.set(K.pin,pin); TD={activity:j.activity||[],feedback:j.feedback||[],filter:TD&&TD.filter||"",gfilter:TD&&TD.gfilter||"",sfilter:TD&&TD.sfilter||""}; cb(null);
     }).catch(()=>cb("Couldn't reach the class sheet. Check the Web app URL and that access is set to 'Anyone'."));
   }
   function toCSV(){
-    const rows=[["time","name","grade","boy/girl","event","course","chapter","score","total"]].concat((TD.activity||[]).map(r=>[r.ts,r.name,r.cls,r.g||"",r.event,r.course||"",r.chapter||"",r.score??"",r.total??""]));
+    const rows=[["time","name","grade","subject","boy/girl","event","course","chapter","score","total"]].concat((TD.activity||[]).map(r=>[r.ts,r.name,r.cls,r.sub||"",r.g||"",r.event,r.course||"",r.chapter||"",r.score??"",r.total??""]));
     const csv=rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(",")).join("\n");
     const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download="digiclass-activity.csv"; a.click();
   }
@@ -3857,15 +3860,16 @@ const CLS = (()=>{
     if(e.target.closest("[data-tcsv]")) toCSV();
     if(e.target.closest("[data-tlock]")){ TD=null; store.set(K.pin,""); rerender(); }
   });
-  document.addEventListener("change",e=>{ const f=e.target.closest("[data-tfilter]"); if(f&&TD){ TD.filter=f.value; rerender(); } const gf=e.target.closest("[data-tgfilter]"); if(gf&&TD){ TD.gfilter=gf.value; rerender(); } });
+  document.addEventListener("change",e=>{ const f=e.target.closest("[data-tfilter]"); if(f&&TD){ TD.filter=f.value; rerender(); } const gf=e.target.closest("[data-tgfilter]"); if(gf&&TD){ TD.gfilter=gf.value; rerender(); } const sfl=e.target.closest("[data-tsfilter]"); if(sfl&&TD){ TD.sfilter=sfl.value; rerender(); } });
   document.addEventListener("submit",e=>{
     const jf=e.target.closest("[data-join]");
-    if(jf){ e.preventDefault(); const name=jf.name.value.trim().split(/\s+/)[0].slice(0,20), cls=jf.cls.value, g=jf.g.value;
+    if(jf){ e.preventDefault(); const name=jf.name.value.trim().split(/\s+/)[0].slice(0,20), cls=jf.cls.value, g=jf.g.value, sub=jf.sub.value;
       if(!/^[\p{L}][\p{L}'.-]{0,19}$/u.test(name)){ toast("Please enter just your first name (letters only)."); return; }
       if(!cls){ toast("Please choose your grade."); return; }
+      if(!sub){ toast("Please choose your subject."); return; }
       if(!g){ toast("Please choose boy or girl."); return; }
       const old=me();
-      store.set(K.me,{name:name.charAt(0).toUpperCase()+name.slice(1), cls, g, sid:(old&&old.sid)||Math.random().toString(36).slice(2,10)});
+      store.set(K.me,{name:name.charAt(0).toUpperCase()+name.slice(1), cls, g, sub, sid:(old&&old.sid)||Math.random().toString(36).slice(2,10)});
       send("join",{}); toast(`Welcome, ${name}! 🎉`); rerender(); return; }
     const tp=e.target.closest("[data-tpin]");
     if(tp){ e.preventDefault(); const msg=$("tpinMsg"); msg.textContent="Loading…"; loadTD(tp.pin.value.trim(), err=>{ if(err) msg.textContent=err; else rerender(); }); }
