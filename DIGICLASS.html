@@ -2,6 +2,7 @@
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
+<meta name="dc-build" content="20261008183629">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>DigiClass | Learn • Practise • Explore • Excel</title>
 <meta name="description" content="DigiClass: notes, quizzes, solved questions and mock papers for Classes 11 and 12: Computer Science and Informatics Practices.">
@@ -3321,6 +3322,23 @@ const DCP = (()=>{
 
 render(parseHash());
 
+</script>
+
+<script>
+/* Auto-update: compares this page's build stamp with the copy on the server. */
+(function(){
+  if(!/^https?:$/.test(location.protocol) || !/github\.io$|\.pages\.dev$|\.netlify\.app$|\.vercel\.app$/.test(location.hostname)) return;
+  var mine=(document.querySelector('meta[name="dc-build"]')||{}).content; if(!mine) return;
+  function check(){
+    fetch(location.pathname+'?check='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.text():'';}).then(function(t){
+      var m=t.match(/name="dc-build" content="(\d+)"/); if(!m||m[1]===mine) return;
+      var key='dc-upd-'+m[1]; try{ if(sessionStorage.getItem(key)) return; sessionStorage.setItem(key,'1'); }catch(e){}
+      location.replace(location.pathname+'?v='+m[1]+location.hash);
+    }).catch(function(){});
+  }
+  check();
+  document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') check(); });
+})();
 </script>
 </body>
 </html>
