@@ -2,7 +2,7 @@
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="dc-build" content="20261008201533">
+<meta name="dc-build" content="20261008203019">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>DigiClass | Learn • Practise • Explore • Excel</title>
 <meta name="description" content="DigiClass: notes, quizzes, solved questions and mock papers for Classes 11 and 12: Computer Science and Informatics Practices.">
@@ -3687,7 +3687,7 @@ const DCP = (()=>{
 
 /* =====================================================================
    DIGICLASS "MY CLASS" (v8): ClassDojo-style class tracking
-   - Students join with FULL NAME + CLASS only (no email/phone).
+   - Students join with FIRST NAME + CLASS only (no email/phone).
    - Activity and feedback are sent to the teacher's own Google Sheet
      through a Google Apps Script web app (URL in DC_CLASS.endpoint).
    - Teacher dashboard (#/teacher) reads it back with a PIN.
@@ -3747,15 +3747,15 @@ const CLS = (()=>{
     if(m && m.g && m.sub) return "";
     const pv = m||{};
     return `<section class="join reveal" aria-label="Join your class">
-      <div class="join-t"><span class="join-ic" aria-hidden="true">🏫</span><div><h2>Join your class</h2><p>Tell us your first name, grade, subject and whether you are a boy or girl so your teacher can see your progress and you can earn points and badges.${EP?"":" <em>(Your teacher hasn't connected the class sheet yet: your progress stays on this device.)</em>"}</p></div></div>
+      <div class="join-t"><span class="join-ic" aria-hidden="true">🏫</span><div><h2>Join your class</h2><p>Tell us your full name, grade, subject and whether you are a boy or girl so your teacher can see your progress and you can earn points and badges.${EP?"":" <em>(Your teacher hasn't connected the class sheet yet: your progress stays on this device.)</em>"}</p></div></div>
       <form class="join-f" data-join>
-        <label>First name<input name="name" maxlength="20" required autocomplete="given-name" placeholder="e.g. Aisha" value="${esc(pv.name||"")}"></label>
+        <label>Full name<input name="name" maxlength="40" required autocomplete="name" placeholder="e.g. Aisha Rahman" value="${esc(pv.name||"")}"></label>
         <label>Grade<select name="cls" required><option value="">Choose…</option>${DC_CLASS.classes.map(c=>`<option value="${c}" ${pv.cls===c?"selected":""}>Grade ${c}</option>`).join("")}</select></label>
         <label>Subject<select name="sub" required><option value="">Choose…</option>${DC_CLASS.subjects.map(c=>`<option ${pv.sub===c?"selected":""}>${c}</option>`).join("")}</select></label>
         <label>Boy / Girl<select name="g" required><option value="">Choose…</option>${DC_CLASS.genders.map(c=>`<option ${pv.g===c?"selected":""}>${c}</option>`).join("")}</select></label>
         <button class="btn primary" type="submit">Join</button>
       </form>
-      <p class="join-safe">🛡️ Only your first name, grade, subject and boy/girl are used. Don't enter your full name, email or phone number.</p>
+      <p class="join-safe">🛡️ Only your name, grade, subject and boy/girl are used. Don't enter your email or phone number.</p>
     </section>`;
   }
   function classPanel(){
@@ -3863,13 +3863,13 @@ const CLS = (()=>{
   document.addEventListener("change",e=>{ const f=e.target.closest("[data-tfilter]"); if(f&&TD){ TD.filter=f.value; rerender(); } const gf=e.target.closest("[data-tgfilter]"); if(gf&&TD){ TD.gfilter=gf.value; rerender(); } const sfl=e.target.closest("[data-tsfilter]"); if(sfl&&TD){ TD.sfilter=sfl.value; rerender(); } });
   document.addEventListener("submit",e=>{
     const jf=e.target.closest("[data-join]");
-    if(jf){ e.preventDefault(); const name=jf.name.value.trim().split(/\s+/)[0].slice(0,20), cls=jf.cls.value, g=jf.g.value, sub=jf.sub.value;
-      if(!/^[\p{L}][\p{L}'.-]{0,19}$/u.test(name)){ toast("Please enter just your first name (letters only)."); return; }
+    if(jf){ e.preventDefault(); const name=jf.name.value.trim().replace(/\s+/g,' ').slice(0,40), cls=jf.cls.value, g=jf.g.value, sub=jf.sub.value;
+      if(!/^[\p{L}][\p{L}'. -]{1,39}$/u.test(name)){ toast("Please enter your full name (letters only)."); return; }
       if(!cls){ toast("Please choose your grade."); return; }
       if(!sub){ toast("Please choose your subject."); return; }
       if(!g){ toast("Please choose boy or girl."); return; }
       const old=me();
-      store.set(K.me,{name:name.charAt(0).toUpperCase()+name.slice(1), cls, g, sub, sid:(old&&old.sid)||Math.random().toString(36).slice(2,10)});
+      store.set(K.me,{name:name.replace(/(^|\s)\S/g,c=>c.toUpperCase()), cls, g, sub, sid:(old&&old.sid)||Math.random().toString(36).slice(2,10)});
       send("join",{}); toast(`Welcome, ${name}! 🎉`); rerender(); return; }
     const tp=e.target.closest("[data-tpin]");
     if(tp){ e.preventDefault(); const msg=$("tpinMsg"); msg.textContent="Loading…"; loadTD(tp.pin.value.trim(), err=>{ if(err) msg.textContent=err; else rerender(); }); }
