@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="dc-build" content="20261008193435">
+<meta name="dc-build" content="20261008194222">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>DigiClass | Learn • Practise • Explore • Excel</title>
 <meta name="description" content="DigiClass: notes, quizzes, solved questions and mock papers for Classes 11 and 12: Computer Science and Informatics Practices.">
-<meta name="theme-color" content="#F76707">
+<meta name="theme-color" content="#0C0A11">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=Source+Code+Pro:wght@400;500;600&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
@@ -1550,6 +1550,112 @@ mark{background:#FFE8B0}
   .reveal{opacity:1;transform:none;transition:none}
   .ctile:hover,.stile:hover,.chrow:hover,.mode:hover,.btn:hover{transform:none}
 }
+
+/* =====================================================================
+   DIGICLASS THEME (v11): two looks, one toggle
+   • Black & Purple (default)   • Orange & Mint (sun/moon button)
+   Keeps the chalkboard, readable Source Sans text and all motion.
+   ===================================================================== */
+:root,:root[data-theme="light"]{
+  --bg:#F3FBF7; --bg2:#E9F7F0; --surface:#FFFFFF; --surface2:#F7FCFA; --raise:#E3F5EC;
+  --line:#D5EDE2; --line2:#B9E0CF;
+  --ink:#16201C; --soft:#3F5049; --muted:#6B7C75;
+  --brand:#E8590C; --brand-d:#C2410C; --green:#0CA678; --mint:#0CA678; --orange:#E8590C;
+  --u0:#E67700; --u1:#E8590C; --u2:#0CA678; --u3:#7048E8; --u4:#E64980; --u5:#1C7ED6; --u6:#C2410C;
+  --accent:#E8590C; --accent-bg:#FFEBDC; --accent-line:#FFC29B;
+  --ok:#0B8A62; --okbg:#E3F8EF;
+  --c11:linear-gradient(135deg,#FF922B 0%,#F76707 100%);
+  --c12:linear-gradient(135deg,#12B886 0%,#087F5B 100%);
+  --s-cs:#F76707; --s-ip:#0CA678;
+  --glass:rgba(255,255,255,.93);
+  --glow:0 2px 4px rgba(10,80,60,.06),0 14px 28px -12px rgba(12,166,120,.3);
+}
+:root[data-theme="dark"]{
+  --bg:#0C0A11; --bg2:#110E18; --surface:#17131F; --surface2:#1E1828; --raise:#291F37;
+  --line:#2A2139; --line2:#3D3052;
+  --ink:#F6F2FC; --soft:#CFC5DE; --muted:#9A8EAD;
+  --brand:#B388FF; --brand-d:#9D6BFF; --green:#4BE3AF; --mint:#4BE3AF; --orange:#FF9A4D; --pink:#FF7AC3;
+  --u0:#FFC069; --u1:#B388FF; --u2:#4BE3AF; --u3:#FF9A4D; --u4:#FF7AC3; --u5:#6CC4FF; --u6:#FFA94D;
+  --accent:#B388FF; --accent-bg:rgba(179,136,255,.14); --accent-line:rgba(179,136,255,.45);
+  --ok:#4BE3AF; --okbg:rgba(75,227,175,.12); --bad:#FF6B81; --badbg:rgba(255,107,129,.12);
+  --c11:linear-gradient(135deg,#8B3DFF 0%,#D946EF 100%);
+  --c12:linear-gradient(135deg,#5B2BD9 0%,#14B8A6 100%);
+  --s-cs:#A66BFF; --s-ip:#2FD4A0;
+  --glass:rgba(16,13,22,.9); --on-accent:#14091F;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 20px -10px rgba(0,0,0,.6);
+  --glow:0 0 0 1px var(--line2),0 18px 36px -16px rgba(139,61,255,.45);
+}
+
+/* page background */
+:root[data-theme="light"] body,:root:not([data-theme]) body{background:radial-gradient(1000px 560px at 100% -10%,#FFE3CC 0,transparent 60%),radial-gradient(900px 520px at -10% 25%,#D3F9EA 0,transparent 60%),var(--bg);background-attachment:fixed}
+:root[data-theme="dark"] body{background:radial-gradient(1000px 600px at 100% -10%,rgba(139,61,255,.22) 0,transparent 60%),radial-gradient(800px 500px at -10% 40%,rgba(20,184,166,.10) 0,transparent 60%),var(--bg);background-attachment:fixed}
+
+/* top stripe */
+:root[data-theme="light"] .topbar::before{background:linear-gradient(90deg,#FF922B,#12B886,#F76707,#38D9A9,#FF922B);background-size:300% 100%}
+:root[data-theme="dark"] .topbar::before{background:linear-gradient(90deg,#8B3DFF,#D946EF,#4BE3AF,#FF9A4D,#8B3DFF);background-size:300% 100%}
+:root[data-theme="dark"] .readbar{background:linear-gradient(90deg,#8B3DFF,#4BE3AF)}
+:root[data-theme="light"] .readbar{background:linear-gradient(90deg,#F76707,#12B886)}
+
+/* primary buttons */
+:root[data-theme="dark"] .btn.primary{background:linear-gradient(180deg,#9D5CFF,#7C3AED);border-color:#7C3AED;color:#fff;box-shadow:0 3px 0 #4C1D95}
+:root[data-theme="dark"] .btn.primary:hover{background:linear-gradient(180deg,#AE75FF,#8B4BFF);color:#fff;box-shadow:0 5px 0 #4C1D95}
+:root[data-theme="dark"] .btn:not(.primary):hover{border-color:var(--brand);color:var(--brand)}
+
+/* ---------- hero: Black & Purple ---------- */
+:root[data-theme="dark"] .hero2{background:radial-gradient(600px 380px at 85% 10%,rgba(217,70,239,.35),transparent 65%),radial-gradient(520px 360px at 5% 100%,rgba(20,184,166,.28),transparent 65%),linear-gradient(135deg,#1A1028 0%,#120B1D 60%,#0F0A17 100%);background-size:auto;animation:none;border:1px solid #33264A;box-shadow:0 30px 60px -30px rgba(139,61,255,.55);color:#fff}
+:root[data-theme="dark"] .hero2::after{background:radial-gradient(rgba(255,255,255,.07) 1.2px,transparent 1.6px) 0 0/22px 22px;opacity:1}
+:root[data-theme="dark"] .hero2 .aurora i:nth-child(1){background:radial-gradient(circle,rgba(139,61,255,.75) 0,rgba(139,61,255,0) 70%)}
+:root[data-theme="dark"] .hero2 .aurora i:nth-child(2){background:radial-gradient(circle,rgba(75,227,175,.5) 0,rgba(75,227,175,0) 70%)}
+:root[data-theme="dark"] .hero2 .aurora i:nth-child(3){display:block;width:220px;height:220px;left:45%;top:-90px;background:radial-gradient(circle,rgba(255,154,77,.4) 0,rgba(255,154,77,0) 70%);animation:sun 9s ease-in-out infinite alternate}
+:root[data-theme="dark"] .floaters span{color:rgba(206,180,255,.28)}
+:root[data-theme="dark"] .hero2 h1{color:#fff;background:linear-gradient(100deg,#FFFFFF 0%,#E3D3FF 45%,#B388FF 70%,#4BE3AF 100%);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;text-shadow:none;animation:rise .7s cubic-bezier(.2,.8,.2,1) both,shimmer 8s ease-in-out 1s infinite alternate}
+@keyframes shimmer{to{background-position:100% 0}}
+:root[data-theme="dark"] .hero2 .lead{color:#D9CFEA;font-weight:500}
+:root[data-theme="dark"] .hero2 .teacher{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14)}
+:root[data-theme="dark"] .hero2 .teacher b{color:#fff} :root[data-theme="dark"] .hero2 .teacher small{color:#B9AECB}
+:root[data-theme="dark"] .hero2 .t-av{background:linear-gradient(135deg,#8B3DFF,#D946EF);color:#fff}
+:root[data-theme="dark"] .hero2 .btn.primary{background:linear-gradient(180deg,#4BE3AF,#20C997);border-color:#20C997;color:#0B1F18;box-shadow:0 4px 0 #087F5B}
+:root[data-theme="dark"] .hero2 .btn.primary:hover{background:linear-gradient(180deg,#6CF0C1,#38D9A9);color:#0B1F18;box-shadow:0 6px 0 #087F5B}
+:root[data-theme="dark"] .hero2 .btn.ghost-light{background:rgba(255,255,255,.06);border:1.5px solid rgba(179,136,255,.55);color:#fff}
+:root[data-theme="dark"] .hero2 .btn.ghost-light:hover{background:rgba(179,136,255,.18);border-color:#B388FF;color:#fff}
+:root[data-theme="dark"] .hero2 .hv-subs button{background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.18);color:#fff}
+:root[data-theme="dark"] .hero2 .hv-subs button:hover{background:#B388FF;border-color:#B388FF;color:#14091F}
+:root[data-theme="dark"] .board{box-shadow:inset 0 0 0 2px #6E4628,inset 0 0 40px rgba(0,0,0,.35),0 24px 50px -18px rgba(139,61,255,.55)}
+
+/* ---------- hero: Orange & Mint ---------- */
+:root[data-theme="light"] .hero2{background:linear-gradient(125deg,#FFB061 0%,#FF8A3D 40%,#F76707 75%,#FF6B3D 100%);background-size:200% 200%}
+:root[data-theme="light"] .hero2 .aurora i:nth-child(2){width:320px;height:320px;background:radial-gradient(circle,rgba(56,217,169,.85) 0,rgba(56,217,169,0) 70%)}
+:root[data-theme="light"] .hero2 .aurora i:nth-child(3){display:block;width:180px;height:180px;left:42%;bottom:-70px;background:radial-gradient(circle,rgba(150,242,215,.8) 0,rgba(150,242,215,0) 70%);animation:sun 11s ease-in-out infinite alternate}
+:root[data-theme="light"] .hero2 .btn.primary{background:#16201C;border-color:#16201C}
+:root[data-theme="light"] .hero2 .t-av{background:#0CA678;color:#fff}
+:root[data-theme="light"] .hero2 .hv-subs button:hover{background:#0CA678;border-color:#0CA678;color:#fff}
+
+/* class tiles + small accents */
+.ctile:hover{box-shadow:0 22px 34px -16px color-mix(in srgb,var(--brand) 55%,transparent)}
+:root[data-theme="dark"] .ctile{border:1px solid rgba(255,255,255,.08)}
+:root[data-theme="dark"] .ct-label{background:#fff;color:#14091F}
+:root[data-theme="dark"] .step-n,:root[data-theme="dark"] .qa-n{background:linear-gradient(180deg,#9D5CFF,#7C3AED);color:#fff}
+:root[data-theme="light"] .qa-n{background:linear-gradient(180deg,#12B886,#0CA678);color:#fff}
+:root[data-theme="dark"] .step-n{animation-name:pulsep}
+@keyframes pulsep{0%,100%{box-shadow:0 0 0 0 rgba(157,92,255,.45)}50%{box-shadow:0 0 0 9px rgba(157,92,255,0)}}
+:root[data-theme="light"] .join{border-left-color:#0CA678}
+:root[data-theme="dark"] .join{border-left-color:#B388FF}
+:root[data-theme="dark"] .mc-av{background:linear-gradient(135deg,#8B3DFF,#D946EF)}
+:root[data-theme="light"] .mc-av{background:linear-gradient(135deg,#12B886,#0CA678)}
+:root[data-theme="dark"] .tip{background:rgba(255,192,105,.07);border-color:rgba(255,192,105,.25);border-left-color:#FFC069}
+:root[data-theme="dark"] mark{background:rgba(179,136,255,.3);color:#fff}
+:root[data-theme="dark"] .qtag{color:#FF7AC3;background:rgba(255,122,195,.1);border-color:rgba(255,122,195,.35)}
+:root[data-theme="dark"] .tabbar button[aria-current="true"]{background:rgba(179,136,255,.16);color:#D7C2FF}
+:root[data-theme="dark"] details>summary{color:#4BE3AF;border-color:rgba(75,227,175,.4);background:rgba(75,227,175,.08)}
+:root[data-theme="dark"] .codeblock{border-color:#2D2340}
+:root[data-theme="dark"] .hc-chal{border-color:rgba(179,136,255,.4)}
+
+/* theme switch button shows the other look */
+#themeBtn{position:relative}
+#themeBtn::after{content:"";position:absolute;right:4px;bottom:4px;width:9px;height:9px;border-radius:50%;border:1.5px solid var(--surface)}
+:root[data-theme="dark"] #themeBtn::after{background:linear-gradient(135deg,#FF922B 50%,#12B886 50%)}
+:root[data-theme="light"] #themeBtn::after{background:linear-gradient(135deg,#0C0A11 50%,#8B3DFF 50%)}
+@media (prefers-reduced-motion:reduce){:root[data-theme="dark"] .hero2 h1{animation:none}}
 </style>
 </head>
 <body>
@@ -1598,10 +1704,10 @@ const CURRICULA = [
 ];
 const SUBJECTS = [
   { id:"cs", curriculum:"cbse", name:"Computer Science", code:"083", mark:"</>", icon:"💻", color:"var(--u1)",
-    grad:"#E8590C",
+    grad:"var(--s-cs)",
     blurb:"Python programming, Boolean logic, file handling, stacks, computer networks and SQL databases." },
   { id:"ip", curriculum:"cbse", name:"Informatics Practices", code:"065", mark:"▦", icon:"📊", color:"var(--u3)",
-    grad:"#0F766E",
+    grad:"var(--s-ip)",
     blurb:"Python, NumPy and Pandas for data handling, charts with Matplotlib, SQL, networks and the digital society." }
 ];
 const COURSES = [];
@@ -2626,7 +2732,7 @@ function subjectTile(s){
 }
 const SUBJ_ORDER = s => SUBJECTS.findIndex(x=>x.id===s);
 function classStats(g){ const cs=COURSES.filter(c=>c.grade===g); const tot=cs.reduce((n,c)=>n+c.study.length,0), dn=cs.reduce((n,c)=>n+c.study.filter(ch=>done.has(ch.id)).length,0); return {cs,tot,dn,p:tot?Math.round(dn/tot*100):0}; }
-const CLASS_GRAD = g => ["#E8590C","#C2410C","#0F766E","#7048E8"][GRADES.indexOf(g)%4];
+const CLASS_GRAD = g => ["var(--c11)","var(--c12)","var(--c11)","var(--c12)"][GRADES.indexOf(g)%4];
 function classTile(g){
   const {cs,tot,p}=classStats(g);
   return `<button class="ctile reveal" data-nav-go="class${g}" style="--sg:${CLASS_GRAD(g)}">
@@ -3163,11 +3269,11 @@ function applyTheme(t){
   document.documentElement.dataset.theme = t;
   const dark = t==="dark";
   $("themeBtn").innerHTML = dark?IC.sun:IC.moon;
-  $("themeBtn").setAttribute("aria-label", dark?"Switch to light theme":"Switch to dark theme");
-  document.querySelector('meta[name="theme-color"]').setAttribute("content", dark?"#1A130E":"#FFF4E6");
+  $("themeBtn").setAttribute("aria-label", dark?"Switch to Orange & Mint look":"Switch to Black & Purple look");
+  document.querySelector('meta[name="theme-color"]').setAttribute("content", dark?"#0C0A11":"#F3FBF7");
 }
-applyTheme(store.get("dc-theme","light"));
-$("themeBtn").onclick=()=>{ const t=document.documentElement.dataset.theme==="dark"?"light":"dark"; store.set("dc-theme",t); applyTheme(t); };
+applyTheme(store.get("dc-look","dark"));
+$("themeBtn").onclick=()=>{ const t=document.documentElement.dataset.theme==="dark"?"light":"dark"; store.set("dc-look",t); applyTheme(t); };
 
 
 /* =====================================================================
@@ -3589,7 +3695,8 @@ const DCP = (()=>{
 const DC_CLASS = {
   // Paste the Google Apps Script "Web app URL" here (ends with /exec):
   endpoint: "https://script.google.com/macros/s/AKfycbzpEpFmRbIbacu4-BgICaT3ZN8TIwOgti8pT76gmNmftQbSbJoErzM86G4ikxHgZEfFcg/exec",
-  classes: ["11B","11N","11P","12N","12Q"]
+  classes: ["11","12"],
+  genders: ["Boy","Girl"]
 };
 
 const CLS = (()=>{
@@ -3601,13 +3708,13 @@ const CLS = (()=>{
 
   function send(event, data){
     const m = me(); if(!EP || !m) return;
-    const body = Object.assign({ kind:"activity", ts:new Date().toISOString(), name:m.name, cls:m.cls, sid:m.sid, event }, data||{});
+    const body = Object.assign({ kind:"activity", ts:new Date().toISOString(), name:m.name, cls:m.cls, sid:m.sid, g:m.g||"", event }, data||{});
     try{ fetch(EP, { method:"POST", mode:"no-cors", headers:{ "Content-Type":"text/plain;charset=utf-8" }, body:JSON.stringify(body) }).catch(()=>{}); }catch(e){}
   }
   function once(key, fn){ const s=store.get(K.sent,{}); if(s[key]) return; s[key]=1; const ks=Object.keys(s); if(ks.length>3000) delete s[ks[0]]; store.set(K.sent,s); fn(); }
   function feedback(item){
     const m = me()||{}; if(!EP) return false;
-    const body = Object.assign({ kind:"feedback" }, item, { name:item.name||m.name||"", cls:m.cls||"", sid:m.sid||"" });
+    const body = Object.assign({ kind:"feedback" }, item, { name:item.name||m.name||"", cls:m.cls||"", sid:m.sid||"", g:m.g||"" });
     try{ fetch(EP, { method:"POST", mode:"no-cors", headers:{ "Content-Type":"text/plain;charset=utf-8" }, body:JSON.stringify(body) }).catch(()=>{}); }catch(e){}
     return true;
   }
@@ -3635,23 +3742,25 @@ const CLS = (()=>{
   /* ---------- UI: join card, my class panel ---------- */
   function joinCard(where){
     const m = me();
-    if(m) return "";
+    if(m && m.g) return "";
+    const pv = m||{};
     return `<section class="join reveal" aria-label="Join your class">
-      <div class="join-t"><span class="join-ic" aria-hidden="true">🏫</span><div><h2>Join your class</h2><p>Tell us your first name and class so your teacher can see your progress and you can earn points and badges.${EP?"":" <em>(Your teacher hasn't connected the class sheet yet: your progress stays on this device.)</em>"}</p></div></div>
+      <div class="join-t"><span class="join-ic" aria-hidden="true">🏫</span><div><h2>Join your class</h2><p>Tell us your first name, grade and whether you are a boy or girl so your teacher can see your progress and you can earn points and badges.${EP?"":" <em>(Your teacher hasn't connected the class sheet yet: your progress stays on this device.)</em>"}</p></div></div>
       <form class="join-f" data-join>
-        <label>First name<input name="name" maxlength="20" required autocomplete="given-name" placeholder="e.g. Aisha"></label>
-        <label>Class<select name="cls" required><option value="">Choose…</option>${DC_CLASS.classes.map(c=>`<option>${c}</option>`).join("")}</select></label>
+        <label>First name<input name="name" maxlength="20" required autocomplete="given-name" placeholder="e.g. Aisha" value="${esc(pv.name||"")}"></label>
+        <label>Grade<select name="cls" required><option value="">Choose…</option>${DC_CLASS.classes.map(c=>`<option value="${c}" ${pv.cls===c?"selected":""}>Grade ${c}</option>`).join("")}</select></label>
+        <label>Boy / Girl<select name="g" required><option value="">Choose…</option>${DC_CLASS.genders.map(c=>`<option ${pv.g===c?"selected":""}>${c}</option>`).join("")}</select></label>
         <button class="btn primary" type="submit">Join</button>
       </form>
-      <p class="join-safe">🛡️ Only your first name and class are used. Don't enter your full name, email or phone number.</p>
+      <p class="join-safe">🛡️ Only your first name, grade and boy/girl are used. Don't enter your full name, email or phone number.</p>
     </section>`;
   }
   function classPanel(){
-    const m = me(); if(!m) return joinCard("me");
+    const m = me(); if(!m || !m.g) return joinCard("me");
     const {pts,badges} = points(), got = badges.filter(b=>b[3]);
     return `<section class="myclass reveal" aria-label="My class">
       <div class="mc-top"><div class="mc-av" aria-hidden="true">${esc(m.name.slice(0,1).toUpperCase())}</div>
-        <div class="mc-id"><b>${esc(m.name)}</b><span>Class ${esc(m.cls)} ${EP?"· ✅ connected to your teacher":"· saved on this device"}</span></div>
+        <div class="mc-id"><b>${esc(m.name)}</b><span>Grade ${esc(m.cls)} · ${esc(m.g)} ${EP?"· ✅ connected to your teacher":"· saved on this device"}</span></div>
         <div class="mc-pts"><b>${pts}</b><span>points</span></div>
         <button class="btn" data-leave title="Change name or class">Change</button></div>
       <div class="mc-badges">${badges.map(b=>`<span class="badge2 ${b[3]?"got":""}" title="${esc(b[2])}"><i aria-hidden="true">${b[0]}</i><b>${esc(b[1])}</b><small>${esc(b[2])}</small></span>`).join("")}</div>
@@ -3674,15 +3783,17 @@ const CLS = (()=>{
     const A = (TD.activity||[]).map(fixC), F = (TD.feedback||[]).map(fixC);
     const now=Date.now(), dayMs=864e5;
     const studs = {};
-    A.forEach(r=>{ const k=(r.sid||r.name+"|"+r.cls); const s=studs[k]||(studs[k]={name:r.name,cls:r.cls,first:r.ts,last:r.ts,opened:new Set(),done:new Set(),quiz:[],papers:[],days:new Set()});
-      if(r.ts<s.first) s.first=r.ts; if(r.ts>s.last) s.last=r.ts; s.days.add(String(r.ts).slice(0,10));
+    A.forEach(r=>{ const k=(r.sid||r.name+"|"+r.cls); const s=studs[k]||(studs[k]={name:r.name,cls:r.cls,g:"",first:r.ts,last:r.ts,opened:new Set(),done:new Set(),quiz:[],papers:[],days:new Set()});
+      if(r.ts<s.first) s.first=r.ts; if(r.ts>s.last) s.last=r.ts; s.days.add(String(r.ts).slice(0,10)); if(r.g) s.g=r.g;
       if(r.event==="open") s.opened.add(r.chapter); if(r.event==="done") s.done.add(r.chapter); if(r.event==="undone") s.done.delete(r.chapter);
       if(r.event==="quiz") s.quiz.push(r); if(r.event==="paper") s.papers.push(r); });
     const list = Object.values(studs).sort((a,b)=>a.cls.localeCompare(b.cls)||a.name.localeCompare(b.name));
     const active = (d)=>list.filter(s=>now-new Date(s.last)<d*dayMs).length;
     const classes=[...new Set(list.map(s=>s.cls))].sort();
     const cf = TD.filter||"";
-    const shown = cf?list.filter(s=>s.cls===cf):list;
+    const gf = TD.gfilter||"";
+    const shown = list.filter(s=>(!cf||s.cls===cf)&&(!gf||s.g===gf));
+    const nB=list.filter(s=>s.g==="Boy").length, nG=list.filter(s=>s.g==="Girl").length;
     const qavg = s => { if(!s.quiz.length) return "–"; const p=s.quiz.reduce((n,q)=>n+(+q.score)/(+q.total||1),0)/s.quiz.length; return Math.round(p*100)+"%"; };
     const chOpen={}, chDone={}, chQ={};
     A.forEach(r=>{ if(r.event==="open") (chOpen[r.chapter]=chOpen[r.chapter]||new Set()).add(r.sid||r.name); if(r.event==="done") (chDone[r.chapter]=chDone[r.chapter]||new Set()).add(r.sid||r.name); if(r.event==="quiz"){ const q=chQ[r.chapter]||(chQ[r.chapter]={n:0,p:0}); q.n++; q.p+=(+r.score)/(+r.total||1);} });
@@ -3691,14 +3802,15 @@ const CLS = (()=>{
     return `<section class="tlive"><div class="tl-head"><h2 class="t-h">🏫 My Class (live)</h2><div class="tl-act"><button class="btn" data-trefresh>↻ Refresh</button><button class="btn" data-tcsv>⬇ Download CSV</button><button class="btn ghost" data-tlock>Lock</button></div></div>
       <div class="pp-grid">
         <div class="pp-tile"><b>${list.length}</b><span>Students joined</span></div>
+        <div class="pp-tile"><b>${nB} / ${nG}</b><span>Boys / Girls</span></div>
         <div class="pp-tile"><b>${active(1)}</b><span>Active today</span></div>
         <div class="pp-tile"><b>${active(7)}</b><span>Active this week</span></div>
         <div class="pp-tile"><b>${A.filter(r=>r.event==="done").length}</b><span>Chapters completed</span></div>
         <div class="pp-tile"><b>${A.filter(r=>r.event==="quiz").length}</b><span>Quizzes taken</span></div>
         <div class="pp-tile"><b>${F.length}</b><span>Feedback messages</span></div>
       </div>
-      <h3 class="t-h">Students ${classes.length>1?`<select class="tfilter" data-tfilter aria-label="Filter by class"><option value="">All classes</option>${classes.map(c=>`<option ${c===cf?"selected":""}>${esc(c)}</option>`).join("")}</select>`:""}</h3>
-      ${shown.length?`<div class="tbl"><table><thead><tr><th>Name</th><th>Class</th><th>Chapters read</th><th>Completed</th><th>Quizzes</th><th>Avg quiz</th><th>Mock papers</th><th>Days active</th><th>Last seen</th></tr></thead><tbody>${shown.map(s=>`<tr><td><b>${esc(s.name)}</b></td><td>${esc(s.cls)}</td><td>${s.opened.size}</td><td>${s.done.size}</td><td>${s.quiz.length}</td><td>${qavg(s)}</td><td>${s.papers.length?s.papers.map(p=>`${esc(p.course)} ${p.score}/${p.total}`).join(", "):"–"}</td><td>${s.days.size}</td><td>${fmtD(s.last)}</td></tr>`).join("")}</tbody></table></div>`:`<p class="meta">No students have joined yet. Share the link and ask them to tap <b>Join your class</b> on the home page.</p>`}
+      <h3 class="t-h">Students <select class="tfilter" data-tfilter aria-label="Filter by grade"><option value="">All grades</option>${classes.map(c=>`<option value="${esc(c)}" ${c===cf?"selected":""}>Grade ${esc(c)}</option>`).join("")}</select> <select class="tfilter" data-tgfilter aria-label="Filter boys or girls"><option value="">Boys and girls</option>${DC_CLASS.genders.map(c=>`<option ${c===gf?"selected":""}>${c}</option>`).join("")}</select></h3>
+      ${shown.length?`<div class="tbl"><table><thead><tr><th>Name</th><th>Grade</th><th>Boy/Girl</th><th>Chapters read</th><th>Completed</th><th>Quizzes</th><th>Avg quiz</th><th>Mock papers</th><th>Days active</th><th>Last seen</th></tr></thead><tbody>${shown.map(s=>`<tr><td><b>${esc(s.name)}</b></td><td>${esc(s.cls)}</td><td>${esc(s.g||"–")}</td><td>${s.opened.size}</td><td>${s.done.size}</td><td>${s.quiz.length}</td><td>${qavg(s)}</td><td>${s.papers.length?s.papers.map(p=>`${esc(p.course)} ${p.score}/${p.total}`).join(", "):"–"}</td><td>${s.days.size}</td><td>${fmtD(s.last)}</td></tr>`).join("")}</tbody></table></div>`:`<p class="meta">No students have joined yet. Share the link and ask them to tap <b>Join your class</b> on the home page.</p>`}
       <h3 class="t-h">Most studied chapters</h3>
       ${chRows.length?`<div class="tbl"><table><thead><tr><th>Chapter</th><th>Students who opened</th><th>Completed</th><th>Avg quiz</th></tr></thead><tbody>${chRows.map(id=>`<tr><td>${esc(CHBY[id].title)} <small>(${CHBY[id].course.short} ${CHBY[id].course.grade})</small></td><td>${chOpen[id].size}</td><td>${chDone[id]?chDone[id].size:0}</td><td>${chQ[id]?Math.round(chQ[id].p/chQ[id].n*100)+"%":"–"}</td></tr>`).join("")}</tbody></table></div>`:`<p class="meta">No chapter activity yet.</p>`}
       ${hardQ.length?`<h3 class="t-h">Chapters that need re-teaching (lowest quiz scores)</h3><div class="tbl"><table><thead><tr><th>Chapter</th><th>Avg score</th><th>Attempts</th></tr></thead><tbody>${hardQ.map(([id,p,n])=>`<tr><td>${esc(CHBY[id].title)}</td><td>${p}%</td><td>${n}</td></tr>`).join("")}</tbody></table></div>`:""}
@@ -3710,11 +3822,11 @@ const CLS = (()=>{
   function loadTD(pin, cb){
     fetch(`${EP}?action=summary&pin=${encodeURIComponent(pin)}`).then(r=>r.json()).then(j=>{
       if(j.error){ cb(j.error==="pin"?"Wrong PIN.":"Error: "+j.error); return; }
-      store.set(K.pin,pin); TD={activity:j.activity||[],feedback:j.feedback||[],filter:TD&&TD.filter||""}; cb(null);
+      store.set(K.pin,pin); TD={activity:j.activity||[],feedback:j.feedback||[],filter:TD&&TD.filter||"",gfilter:TD&&TD.gfilter||""}; cb(null);
     }).catch(()=>cb("Couldn't reach the class sheet. Check the Web app URL and that access is set to 'Anyone'."));
   }
   function toCSV(){
-    const rows=[["time","name","class","event","course","chapter","score","total"]].concat((TD.activity||[]).map(r=>[r.ts,r.name,r.cls,r.event,r.course||"",r.chapter||"",r.score??"",r.total??""]));
+    const rows=[["time","name","grade","boy/girl","event","course","chapter","score","total"]].concat((TD.activity||[]).map(r=>[r.ts,r.name,r.cls,r.g||"",r.event,r.course||"",r.chapter||"",r.score??"",r.total??""]));
     const csv=rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(",")).join("\n");
     const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download="digiclass-activity.csv"; a.click();
   }
@@ -3726,11 +3838,11 @@ const CLS = (()=>{
     if(v.name==="chapter"){ const ch=CHBY[v.id]; once(`open:${v.id}:${day()}`, ()=>send("open",{course:ch.course.id, chapter:v.id})); }
     once(`visit:${day()}`, ()=>send("visit",{page:location.hash||"#/"}));
     const host=$("content");
-    if(v.name==="courses"){ const hs=host.querySelector(".hstrip"); if(hs) hs.insertAdjacentHTML("beforebegin", me()?"":joinCard("home")); }
+    if(v.name==="courses"){ const hs=host.querySelector(".hstrip"); if(hs) hs.insertAdjacentHTML("beforebegin", joinCard("home")); }
     if(v.name==="me"){ const pp=host.querySelector(".pp"); if(pp) pp.insertAdjacentHTML("beforebegin", classPanel()); }
     if(v.name==="teacher"){ const w=host.querySelector(".teacher-v .hub-head"); if(w) w.insertAdjacentHTML("afterend", teacherLive()); }
     host.querySelectorAll(".join.reveal,.myclass.reveal,.tlive").forEach(e=>e.classList.add("in"));
-    const fbName=document.getElementById("fbName"); if(fbName&&me()&&!fbName.value) fbName.value=me().name+", "+me().cls;
+    const fbName=document.getElementById("fbName"); if(fbName&&me()&&!fbName.value) fbName.value=me().name+", Grade "+me().cls;
   };
   const _drawQ = drawQ;
   drawQ = function(){ _drawQ(); if(Q && Q.i>=Q.qs.length && !Q.sent){ Q.sent=true; const ch=CHBY[Q.id]; send("quiz",{course:ch.course.id, chapter:Q.id, score:Q.right, total:Q.qs.length}); } };
@@ -3744,13 +3856,15 @@ const CLS = (()=>{
     if(e.target.closest("[data-tcsv]")) toCSV();
     if(e.target.closest("[data-tlock]")){ TD=null; store.set(K.pin,""); rerender(); }
   });
-  document.addEventListener("change",e=>{ const f=e.target.closest("[data-tfilter]"); if(f&&TD){ TD.filter=f.value; rerender(); } });
+  document.addEventListener("change",e=>{ const f=e.target.closest("[data-tfilter]"); if(f&&TD){ TD.filter=f.value; rerender(); } const gf=e.target.closest("[data-tgfilter]"); if(gf&&TD){ TD.gfilter=gf.value; rerender(); } });
   document.addEventListener("submit",e=>{
     const jf=e.target.closest("[data-join]");
-    if(jf){ e.preventDefault(); const name=jf.name.value.trim().split(/\s+/)[0].slice(0,20), cls=jf.cls.value;
+    if(jf){ e.preventDefault(); const name=jf.name.value.trim().split(/\s+/)[0].slice(0,20), cls=jf.cls.value, g=jf.g.value;
       if(!/^[\p{L}][\p{L}'.-]{0,19}$/u.test(name)){ toast("Please enter just your first name (letters only)."); return; }
-      if(!cls){ toast("Please choose your class."); return; }
-      store.set(K.me,{name:name.charAt(0).toUpperCase()+name.slice(1), cls, sid:Math.random().toString(36).slice(2,10)});
+      if(!cls){ toast("Please choose your grade."); return; }
+      if(!g){ toast("Please choose boy or girl."); return; }
+      const old=me();
+      store.set(K.me,{name:name.charAt(0).toUpperCase()+name.slice(1), cls, g, sid:(old&&old.sid)||Math.random().toString(36).slice(2,10)});
       send("join",{}); toast(`Welcome, ${name}! 🎉`); rerender(); return; }
     const tp=e.target.closest("[data-tpin]");
     if(tp){ e.preventDefault(); const msg=$("tpinMsg"); msg.textContent="Loading…"; loadTD(tp.pin.value.trim(), err=>{ if(err) msg.textContent=err; else rerender(); }); }
