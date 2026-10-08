@@ -2,7 +2,7 @@
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="dc-build" content="20261008203741">
+<meta name="dc-build" content="20261008213207">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>DigiClass | Learn • Practise • Explore • Excel</title>
 <meta name="description" content="DigiClass: notes, quizzes, solved questions and mock papers for Classes 11 and 12: Computer Science and Informatics Practices.">
@@ -1223,6 +1223,18 @@ dialog#fb::backdrop{background:rgba(5,8,18,.6);backdrop-filter:blur(4px)}
 .tpin-msg{color:var(--bad);font-weight:600;font-size:.88rem}
 .tfilter{min-width:0;padding:6px 10px;font-size:.85rem;margin-left:8px;vertical-align:middle}
 h3.t-h{font-size:1.05rem}
+.tfilters{display:flex;flex-wrap:wrap;gap:12px;margin:10px 0 14px}
+.tf-l{display:flex;flex-direction:column;gap:4px;font-size:.8rem;font-weight:700;color:var(--muted)}
+.ubar{display:inline-block;vertical-align:middle;width:70px;height:8px;border-radius:99px;background:var(--line);overflow:hidden}
+.ubar i{display:block;height:100%;width:var(--v);background:linear-gradient(90deg,var(--brand),var(--green,#0CA678));border-radius:99px}
+.tweak{margin:10px 0 4px;padding:12px 14px;border:1px solid var(--accent-line);background:var(--accent-bg);border-radius:12px}
+.tcomments{display:grid;gap:10px;max-height:640px;overflow:auto;padding-right:4px}
+.tcm{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.tcm-h{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;font-size:.9rem}
+.tcm-h span{color:var(--muted)} .tcm-h em{font-style:normal;color:var(--brand);font-weight:600} .tcm-h time{margin-left:auto;color:var(--muted);font-size:.8rem}
+.tcm p{margin:6px 0 2px;white-space:pre-wrap}
+.tcm small{color:var(--muted)}
+.t-h small{font-weight:500;color:var(--muted)}
 
 /* =====================================================================
    DIGICLASS THEME (v9): "Notebook & Chalkboard"
@@ -3789,51 +3801,83 @@ const CLS = (()=>{
   }
   const fmtD = s => { const d=new Date(s); return isNaN(d)?"":d.toLocaleDateString(undefined,{day:"numeric",month:"short"})+" "+d.toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"}); };
   function renderTD(){
+    const OK = 0.6;   // a quiz score of 60% or more counts as "understood"
     const fixC = r => (r && r.cls && /^1[12]\D/.test(String(r.cls)) ? Object.assign({}, r, {cls:String(r.cls).slice(0,2)}) : r);
-    const A = (TD.activity||[]).map(fixC), F = (TD.feedback||[]).map(fixC);
+    const AA = (TD.activity||[]).map(fixC), FF = (TD.feedback||[]).map(fixC);
     const now=Date.now(), dayMs=864e5;
+    const SUBS = {"Computer Science":"CS","Informatics Practices":"IP"};
+    const short = s => SUBS[s]||s||"";
+    const keyOf = r => r.sid || (r.name+"|"+r.cls);
+    // students
     const studs = {};
-    A.forEach(r=>{ const k=(r.sid||r.name+"|"+r.cls); const s=studs[k]||(studs[k]={name:r.name,cls:r.cls,g:"",sub:"",first:r.ts,last:r.ts,opened:new Set(),done:new Set(),quiz:[],papers:[],days:new Set()});
-      if(r.ts<s.first) s.first=r.ts; if(r.ts>s.last) s.last=r.ts; s.days.add(String(r.ts).slice(0,10)); if(r.g) s.g=r.g; if(r.sub) s.sub=r.sub;
+    AA.forEach(r=>{ const k=keyOf(r); const s=studs[k]||(studs[k]={k,name:r.name,cls:r.cls,g:"",sub:"",first:r.ts,last:r.ts,opened:new Set(),done:new Set(),quiz:[],qby:{},papers:[],days:new Set()});
+      if(r.ts<s.first) s.first=r.ts; if(r.ts>s.last) s.last=r.ts; s.days.add(String(r.ts).slice(0,10)); if(r.g) s.g=r.g; if(r.sub) s.sub=r.sub; if(r.name) s.name=r.name; if(r.cls) s.cls=r.cls;
       if(r.event==="open") s.opened.add(r.chapter); if(r.event==="done") s.done.add(r.chapter); if(r.event==="undone") s.done.delete(r.chapter);
-      if(r.event==="quiz") s.quiz.push(r); if(r.event==="paper") s.papers.push(r); });
-    const list = Object.values(studs).sort((a,b)=>a.cls.localeCompare(b.cls)||a.name.localeCompare(b.name));
-    const active = (d)=>list.filter(s=>now-new Date(s.last)<d*dayMs).length;
-    const classes=[...new Set(list.map(s=>s.cls))].sort();
-    const cf = TD.filter||"";
-    const gf = TD.gfilter||"", sf = TD.sfilter||"";
-    const shown = list.filter(s=>(!cf||s.cls===cf)&&(!gf||s.g===gf)&&(!sf||s.sub===sf));
+      if(r.event==="quiz"){ s.quiz.push(r); s.qby[r.chapter]=(+r.score)/(+r.total||1); } if(r.event==="paper") s.papers.push(r); });
+    const all = Object.values(studs);
+    const cf=TD.filter||"", gf=TD.gfilter||"", sf=TD.sfilter||"", tf=TD.tfilter||"";
+    const pass = s => (!cf||s.cls===cf)&&(!gf||s.g===gf)&&(!sf||s.sub===sf);
+    const list = all.filter(pass).sort((a,b)=>String(a.cls).localeCompare(String(b.cls))||String(a.name).localeCompare(String(b.name)));
+    const keys = new Set(list.map(s=>s.k));
+    const A = AA.filter(r=>keys.has(keyOf(r)));
+    const F = FF.filter(f=>(!cf||f.cls===cf)&&(!gf||!f.g||f.g===gf)&&(!sf||!f.sub||f.sub===sf));
+    const avg = s => s.quiz.length ? s.quiz.reduce((n,q)=>n+(+q.score)/(+q.total||1),0)/s.quiz.length : null;
+    const pc = (a,b) => b ? Math.round(a/b*100) : null;
+    const pcs = v => v==null ? "–" : v+"%";
+    const bar = v => v==null ? "–" : `<span class="ubar" style="--v:${v}%"><i></i></span> <b>${v}%</b>`;
+    const active = d => list.filter(s=>now-new Date(s.last)<d*dayMs).length;
+    const quizTakers = list.filter(s=>s.quiz.length), understood = quizTakers.filter(s=>avg(s)>=OK);
     const nB=list.filter(s=>s.g==="Boy").length, nG=list.filter(s=>s.g==="Girl").length;
-    const qavg = s => { if(!s.quiz.length) return "–"; const p=s.quiz.reduce((n,q)=>n+(+q.score)/(+q.total||1),0)/s.quiz.length; return Math.round(p*100)+"%"; };
-    const chOpen={}, chDone={}, chQ={};
-    A.forEach(r=>{ if(r.event==="open") (chOpen[r.chapter]=chOpen[r.chapter]||new Set()).add(r.sid||r.name); if(r.event==="done") (chDone[r.chapter]=chDone[r.chapter]||new Set()).add(r.sid||r.name); if(r.event==="quiz"){ const q=chQ[r.chapter]||(chQ[r.chapter]={n:0,p:0}); q.n++; q.p+=(+r.score)/(+r.total||1);} });
-    const chRows = Object.keys(chOpen).filter(id=>CHBY[id]).sort((a,b)=>chOpen[b].size-chOpen[a].size).slice(0,12);
-    const hardQ = Object.entries(chQ).filter(([id,q])=>CHBY[id]&&q.n>=2).map(([id,q])=>[id,Math.round(q.p/q.n*100),q.n]).sort((a,b)=>a[1]-b[1]).slice(0,6);
+    // class summary (grade + subject)
+    const groups = {};
+    list.forEach(s=>{ const k=`Grade ${s.cls}${s.sub?" · "+short(s.sub):""}`; (groups[k]=groups[k]||[]).push(s); });
+    const gRows = Object.keys(groups).sort().map(k=>{ const g=groups[k], qt=g.filter(s=>s.quiz.length), un=qt.filter(s=>avg(s)>=OK);
+      const av = qt.length ? Math.round(qt.reduce((n,s)=>n+avg(s),0)/qt.length*100) : null;
+      return `<tr><td><b>${esc(k)}</b></td><td>${g.length}</td><td>${g.filter(s=>now-new Date(s.last)<7*dayMs).length}</td><td>${qt.length}</td><td>${pcs(av)}</td><td>${bar(pc(un.length,qt.length))} <small>(${un.length} of ${qt.length})</small></td></tr>`; });
+    // chapters
+    const ch = {};
+    const C = id => ch[id]||(ch[id]={open:new Set(),done:new Set(),q:{},rate:[]});
+    A.forEach(r=>{ if(!CHBY[r.chapter]) return; const c=C(r.chapter), k=keyOf(r);
+      if(r.event==="open") c.open.add(k); if(r.event==="done") c.done.add(k); if(r.event==="quiz") c.q[k]=(+r.score)/(+r.total||1); if(r.event==="rate") c.rate.push(+r.score); });
+    const chRows = Object.keys(ch).map(id=>{ const c=ch[id], qs=Object.values(c.q), un=qs.filter(v=>v>=OK).length;
+      return {id, open:c.open.size, done:c.done.size, qn:qs.length, avg:qs.length?Math.round(qs.reduce((a,b)=>a+b,0)/qs.length*100):null, und:pc(un,qs.length), un, rate:c.rate.length?(c.rate.reduce((a,b)=>a+b,0)/c.rate.length).toFixed(1):null, rn:c.rate.length}; })
+      .sort((a,b)=>(b.open-a.open)||(b.qn-a.qn));
+    const weak = chRows.filter(r=>r.qn>=2&&r.und!=null&&r.und<60).sort((a,b)=>a.und-b.und).slice(0,6);
+    // comments
+    const TY = {feedback:"💬 Feedback",question:"❓ Question",error:"🐞 Error report",topic:"💡 Topic request",rating:"⭐ Rating"};
+    const types = [...new Set(FF.map(f=>f.type).filter(Boolean))];
+    const Fs = F.filter(f=>!tf||f.type===tf).slice().reverse();
+    const grades=[...new Set(all.map(s=>s.cls).filter(Boolean))].sort();
+    const subjOpts=[...new Set(DC_CLASS.subjects.concat(all.map(s=>s.sub).filter(Boolean)))];
+    const sel=(attr,label,cur,opts)=>`<label class="tf-l">${label}<select class="tfilter" ${attr}>${opts.map(([v,t])=>`<option value="${esc(v)}" ${v===cur?"selected":""}>${esc(t)}</option>`).join("")}</select></label>`;
+    const about = f => f.ref ? ((CHBY[String(f.ref).split(":")[0]]||{}).title||f.ref) : (f.page||"");
     return `<section class="tlive"><div class="tl-head"><h2 class="t-h">🏫 My Class (live)</h2><div class="tl-act"><button class="btn" data-trefresh>↻ Refresh</button><button class="btn" data-tcsv>⬇ Download CSV</button><button class="btn ghost" data-tlock>Lock</button></div></div>
+      <div class="tfilters">${sel("data-tfilter","Grade",cf,[["","All grades"]].concat(grades.map(c=>[c,"Grade "+c])))}${sel("data-tsfilter","Subject",sf,[["","All subjects"]].concat(subjOpts.map(c=>[c,c])))}${sel("data-tgfilter","Boys / girls",gf,[["","Boys and girls"]].concat(DC_CLASS.genders.map(c=>[c,c])))}</div>
       <div class="pp-grid">
-        <div class="pp-tile"><b>${list.length}</b><span>Students joined</span></div>
-        <div class="pp-tile"><b>${nB} / ${nG}</b><span>Boys / Girls</span></div>
-        <div class="pp-tile"><b>${list.filter(s=>s.sub==="Computer Science").length} / ${list.filter(s=>s.sub==="Informatics Practices").length}</b><span>CS / IP students</span></div>
-        <div class="pp-tile"><b>${active(1)}</b><span>Active today</span></div>
-        <div class="pp-tile"><b>${active(7)}</b><span>Active this week</span></div>
+        <div class="pp-tile"><b>${list.length}</b><span>Students joined</span><small>${nB} boys · ${nG} girls</small></div>
+        <div class="pp-tile"><b>${active(7)}</b><span>Took part this week</span><small>${active(1)} today</small></div>
+        <div class="pp-tile"><b>${quizTakers.length}</b><span>Took a quiz</span><small>${A.filter(r=>r.event==="quiz").length} quizzes in total</small></div>
+        <div class="pp-tile"><b>${pcs(pc(understood.length,quizTakers.length))}</b><span>Understood</span><small>${understood.length} of ${quizTakers.length} averaged 60%+</small></div>
         <div class="pp-tile"><b>${A.filter(r=>r.event==="done").length}</b><span>Chapters completed</span></div>
-        <div class="pp-tile"><b>${A.filter(r=>r.event==="quiz").length}</b><span>Quizzes taken</span></div>
-        <div class="pp-tile"><b>${F.length}</b><span>Feedback messages</span></div>
+        <div class="pp-tile"><b>${F.length}</b><span>Comments</span><small><a href="#tcomments" data-tjump>View all ↓</a></small></div>
       </div>
-      <h3 class="t-h">Students <select class="tfilter" data-tfilter aria-label="Filter by grade"><option value="">All grades</option>${classes.map(c=>`<option value="${esc(c)}" ${c===cf?"selected":""}>Grade ${esc(c)}</option>`).join("")}</select> <select class="tfilter" data-tsfilter aria-label="Filter by subject"><option value="">All subjects</option>${DC_CLASS.subjects.map(c=>`<option ${c===sf?"selected":""}>${c}</option>`).join("")}</select> <select class="tfilter" data-tgfilter aria-label="Filter boys or girls"><option value="">Boys and girls</option>${DC_CLASS.genders.map(c=>`<option ${c===gf?"selected":""}>${c}</option>`).join("")}</select></h3>
-      ${shown.length?`<div class="tbl"><table><thead><tr><th>Name</th><th>Grade</th><th>Subject</th><th>Boy/Girl</th><th>Chapters read</th><th>Completed</th><th>Quizzes</th><th>Avg quiz</th><th>Mock papers</th><th>Days active</th><th>Last seen</th></tr></thead><tbody>${shown.map(s=>`<tr><td><b>${esc(s.name)}</b></td><td>${esc(s.cls)}</td><td>${esc(s.sub==="Computer Science"?"CS":s.sub==="Informatics Practices"?"IP":(s.sub||"–"))}</td><td>${esc(s.g||"–")}</td><td>${s.opened.size}</td><td>${s.done.size}</td><td>${s.quiz.length}</td><td>${qavg(s)}</td><td>${s.papers.length?s.papers.map(p=>`${esc(p.course)} ${p.score}/${p.total}`).join(", "):"–"}</td><td>${s.days.size}</td><td>${fmtD(s.last)}</td></tr>`).join("")}</tbody></table></div>`:`<p class="meta">No students have joined yet. Share the link and ask them to tap <b>Join your class</b> on the home page.</p>`}
-      <h3 class="t-h">Most studied chapters</h3>
-      ${chRows.length?`<div class="tbl"><table><thead><tr><th>Chapter</th><th>Students who opened</th><th>Completed</th><th>Avg quiz</th></tr></thead><tbody>${chRows.map(id=>`<tr><td>${esc(CHBY[id].title)} <small>(${CHBY[id].course.short} ${CHBY[id].course.grade})</small></td><td>${chOpen[id].size}</td><td>${chDone[id]?chDone[id].size:0}</td><td>${chQ[id]?Math.round(chQ[id].p/chQ[id].n*100)+"%":"–"}</td></tr>`).join("")}</tbody></table></div>`:`<p class="meta">No chapter activity yet.</p>`}
-      ${hardQ.length?`<h3 class="t-h">Chapters that need re-teaching (lowest quiz scores)</h3><div class="tbl"><table><thead><tr><th>Chapter</th><th>Avg score</th><th>Attempts</th></tr></thead><tbody>${hardQ.map(([id,p,n])=>`<tr><td>${esc(CHBY[id].title)}</td><td>${p}%</td><td>${n}</td></tr>`).join("")}</tbody></table></div>`:""}
-      <h3 class="t-h">Feedback from students</h3>
-      ${F.length?`<div class="tbl"><table><thead><tr><th>When</th><th>Student</th><th>Type</th><th>Message</th><th>About</th></tr></thead><tbody>${F.slice().reverse().slice(0,60).map(f=>`<tr><td>${fmtD(f.ts)}</td><td>${esc(f.name||"–")} ${esc(f.cls||"")}</td><td>${esc(f.type||"")}${f.reason?` · ${esc(f.reason)}`:""}</td><td>${esc(f.message||"")}</td><td>${esc(f.ref?(CHBY[String(f.ref).split(":")[0]]||{}).title||f.ref:(f.page||""))}</td></tr>`).join("")}</tbody></table></div>`:`<p class="meta">No feedback yet.</p>`}
-      <p class="meta">Everything here comes from your Google Sheet. You can also open the sheet directly to sort, filter or print.</p>
+      <h3 class="t-h">Each class</h3>
+      ${gRows.length?`<div class="tbl"><table><thead><tr><th>Class</th><th>Students joined</th><th>Took part (7 days)</th><th>Took a quiz</th><th>Average quiz score</th><th>Understood (60%+)</th></tr></thead><tbody>${gRows.join("")}</tbody></table></div>`:`<p class="meta">No students have joined yet. Share the link and ask them to fill in <b>Join your class</b> on the home page.</p>`}
+      <h3 class="t-h">Each chapter: how many understood</h3>
+      ${chRows.length?`<div class="tbl"><table><thead><tr><th>Chapter</th><th>Opened</th><th>Completed</th><th>Took quiz</th><th>Average score</th><th>Understood (60%+)</th><th>Rating</th></tr></thead><tbody>${chRows.map(r=>`<tr><td>${esc(CHBY[r.id].title)} <small>(${CHBY[r.id].course.short} ${CHBY[r.id].course.grade})</small></td><td>${r.open}</td><td>${r.done}</td><td>${r.qn}</td><td>${pcs(r.avg)}</td><td>${r.qn?bar(r.und)+` <small>(${r.un} of ${r.qn})</small>`:"–"}</td><td>${r.rate?`⭐ ${r.rate} <small>(${r.rn})</small>`:"–"}</td></tr>`).join("")}</tbody></table></div>`:`<p class="meta">No chapter activity yet.</p>`}
+      ${weak.length?`<div class="tweak"><b>📌 Chapters to re-teach</b> (fewer than 60% understood): ${weak.map(r=>`${esc(CHBY[r.id].title)} <small>(${r.und}%)</small>`).join(", ")}</div>`:""}
+      <h3 class="t-h" id="tcomments">💬 Comments from students <small>(${Fs.length})</small></h3>
+      <div class="tfilters">${sel("data-ttfilter","Type",tf,[["","All types"]].concat(types.map(t=>[t,TY[t]||t])))}</div>
+      ${Fs.length?`<div class="tcomments">${Fs.slice(0,300).map(f=>`<article class="tcm"><div class="tcm-h"><b>${esc(f.name||"Anonymous")}</b><span>${f.cls?"Grade "+esc(f.cls):""}${f.sub?" · "+esc(short(f.sub)):""}</span><em>${esc(TY[f.type]||f.type||"")}${f.reason?" · "+esc(f.reason):""}</em><time>${fmtD(f.ts)}</time></div><p>${esc(f.message||"")}</p>${about(f)?`<small>About: ${esc(about(f))}</small>`:""}</article>`).join("")}</div>`:`<p class="meta">No comments yet.</p>`}
+      <h3 class="t-h">Students</h3>
+      ${list.length?`<div class="tbl"><table><thead><tr><th>Name</th><th>Grade</th><th>Subject</th><th>Boy/Girl</th><th>Chapters read</th><th>Completed</th><th>Quizzes</th><th>Avg quiz</th><th>Understood?</th><th>Mock papers</th><th>Days active</th><th>Last seen</th></tr></thead><tbody>${list.map(s=>{ const a=avg(s); return `<tr><td><b>${esc(s.name)}</b></td><td>${esc(s.cls)}</td><td>${esc(short(s.sub)||"–")}</td><td>${esc(s.g||"–")}</td><td>${s.opened.size}</td><td>${s.done.size}</td><td>${s.quiz.length}</td><td>${a==null?"–":Math.round(a*100)+"%"}</td><td>${a==null?"–":a>=OK?"✅ Yes":"⚠️ Needs help"}</td><td>${s.papers.length?s.papers.map(p=>`${esc(p.course)} ${p.score}/${p.total}`).join(", "):"–"}</td><td>${s.days.size}</td><td>${fmtD(s.last)}</td></tr>`; }).join("")}</tbody></table></div>`:`<p class="meta">No students match these filters.</p>`}
+      <p class="meta">"Understood" means the student's quiz average is 60% or more. Everything here comes from your Google Sheet; you can also open the sheet to sort, filter or print.</p>
     </section>`;
   }
   function loadTD(pin, cb){
     fetch(`${EP}?action=summary&pin=${encodeURIComponent(pin)}`).then(r=>r.json()).then(j=>{
       if(j.error){ cb(j.error==="pin"?"Wrong PIN.":"Error: "+j.error); return; }
-      store.set(K.pin,pin); TD={activity:j.activity||[],feedback:j.feedback||[],filter:TD&&TD.filter||"",gfilter:TD&&TD.gfilter||"",sfilter:TD&&TD.sfilter||""}; cb(null);
+      store.set(K.pin,pin); TD={activity:j.activity||[],feedback:j.feedback||[],filter:TD&&TD.filter||"",gfilter:TD&&TD.gfilter||"",sfilter:TD&&TD.sfilter||"",tfilter:TD&&TD.tfilter||""}; cb(null);
     }).catch(()=>cb("Couldn't reach the class sheet. Check the Web app URL and that access is set to 'Anyone'."));
   }
   function toCSV(){
@@ -3858,6 +3902,9 @@ const CLS = (()=>{
   const _drawQ = drawQ;
   drawQ = function(){ _drawQ(); if(Q && Q.i>=Q.qs.length && !Q.sent){ Q.sent=true; const ch=CHBY[Q.id]; send("quiz",{course:ch.course.id, chapter:Q.id, score:Q.right, total:Q.qs.length}); } };
   document.addEventListener("click",e=>{
+    const st=e.target.closest("[data-star]");
+    if(st){ const card=st.closest("[data-rate-ch]"), id=card&&card.dataset.rateCh, ch=id&&CHBY[id]; if(ch) once(`rate:${id}:${st.dataset.star}`, ()=>send("rate",{course:ch.course.id, chapter:id, score:+st.dataset.star, total:5})); }
+    if(e.target.closest("[data-tjump]")){ e.preventDefault(); const c=document.getElementById("tcomments"); if(c) c.scrollIntoView({behavior:"smooth"}); }
     const d=e.target.closest("[data-done]");
     if(d){ const id=d.dataset.done; setTimeout(()=>{ const ch=CHBY[id]; if(ch) send(done.has(id)?"done":"undone",{course:ch.course.id, chapter:id}); },0); }
     const ps=e.target.closest("[data-psubmit]");
@@ -3867,7 +3914,7 @@ const CLS = (()=>{
     if(e.target.closest("[data-tcsv]")) toCSV();
     if(e.target.closest("[data-tlock]")){ TD=null; store.set(K.pin,""); rerender(); }
   });
-  document.addEventListener("change",e=>{ const f=e.target.closest("[data-tfilter]"); if(f&&TD){ TD.filter=f.value; rerender(); } const gf=e.target.closest("[data-tgfilter]"); if(gf&&TD){ TD.gfilter=gf.value; rerender(); } const sfl=e.target.closest("[data-tsfilter]"); if(sfl&&TD){ TD.sfilter=sfl.value; rerender(); } });
+  document.addEventListener("change",e=>{ const f=e.target.closest("[data-tfilter]"); if(f&&TD){ TD.filter=f.value; rerender(); } const gf=e.target.closest("[data-tgfilter]"); if(gf&&TD){ TD.gfilter=gf.value; rerender(); } const sfl=e.target.closest("[data-tsfilter]"); if(sfl&&TD){ TD.sfilter=sfl.value; rerender(); } const tfl=e.target.closest("[data-ttfilter]"); if(tfl&&TD){ TD.tfilter=tfl.value; rerender(); setTimeout(()=>{ const c=document.getElementById("tcomments"); if(c) c.scrollIntoView(); },0); } });
   document.addEventListener("submit",e=>{
     const jf=e.target.closest("[data-join]");
     if(jf){ e.preventDefault(); const name=jf.name.value.trim().replace(/\s+/g,' ').slice(0,40), cls=jf.cls.value, g=jf.g.value, sub=jf.sub.value;
