@@ -1,0 +1,15 @@
+Copyright (c) 2026 Janathul Firthouse. All rights reserved.
+
+DigiClass, including its lessons, notes, questions, answers, quizzes, mock papers,
+lesson plans, design and code, is the work of Janathul Firthouse.
+
+No part of DigiClass may be copied, downloaded for reuse, shared, published,
+adapted, sold or used to train or build other products, in whole or in part,
+without the written permission of the copyright owner.
+
+Students given a class code may use DigiClass for their own study only.
+
+DigiClass is an independent learning platform. It is not affiliated with,
+endorsed by or connected to the Central Board of Secondary Education (CBSE).
+
+For permission requests, contact the copyright owner.
