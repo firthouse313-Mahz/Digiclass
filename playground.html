@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DigiClass Playground</title>
+<meta name="description" content="Run Python, pandas, matplotlib and SQL right in your browser. Built for Class 11 and 12 Computer Science and Informatics Practices.">
+<meta property="og:title" content="DigiClass Playground">
+<meta property="og:description" content="Run Python, pandas, matplotlib and SQL right in your browser.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+  /* Pick the theme before first paint: saved choice, else the device setting. */
+  (function(){
+    var t=null;
+    try{ t=localStorage.getItem("dc-pg-theme"); }catch(e){}
+    if(t!=="light"&&t!=="dark") t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";
+    document.documentElement.setAttribute("data-theme",t);
+  })();
+</script>
+<style>
+/* ======================= Tokens (same as the main site) ======================= */
+:root{
+  --bg:#0B1030; --bg2:#10173F; --surface:#141B47; --surface2:#1A2257; --raise:#202A66;
+  --line:rgba(150,165,255,.14); --line2:rgba(150,165,255,.26);
+  --ink:#F1F3FF; --soft:#B4BCE3; --muted:#8890BF;
+  --blue:#3D7BFF; --purple:#8B5CF6; --cyan:#22D3EE; --pink:#EC4899;
+  --u1:#5B8CFF; --ok:#A3E635; --okbg:rgba(163,230,53,.12); --bad:#FB7185; --badbg:rgba(251,113,133,.12);
+  --grad:linear-gradient(120deg,#3D7BFF 0%,#8B5CF6 52%,#EC4899 100%);
+  --code:#080C26; --code-ink:#E6E9FF; --code-muted:#6F78B0;
+  --shadow:0 10px 30px -12px rgba(0,0,0,.55);
+  --radius:18px; --radius-sm:12px;
+}
+:root[data-theme="light"]{
+  --bg:#F4F6FF; --bg2:#ECEFFF; --surface:#FFFFFF; --surface2:#F3F5FF; --raise:#E8ECFF;
+  --line:rgba(30,40,120,.11); --line2:rgba(30,40,120,.2);
+  --ink:#0D1236; --soft:#454E80; --muted:#6A72A0;
+  --u1:#2457E6; --ok:#3F7D0E; --okbg:rgba(101,163,13,.12); --bad:#BE123C; --badbg:rgba(225,29,72,.09);
+  --code:#FBFCFF; --code-ink:#0D1236; --code-muted:#8A91BB;
+  --shadow:0 12px 30px -16px rgba(30,40,120,.35);
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:500 15.5px/1.6 "Inter",system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(900px 500px at 85% -10%,rgba(139,92,246,.16),transparent 60%),radial-gradient(700px 500px at -10% 30%,rgba(61,123,255,.12),transparent 60%)}
+button,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--u1)}
+:focus-visible{outline:3px solid var(--cyan);outline-offset:2px;border-radius:8px}
+.mono{font-family:"JetBrains Mono",ui-monospace,Consolas,monospace}
+[hidden]{display:none!important}
+
+/* ======================= Top bar ======================= */
+.topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 80%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.tb-in{max-width:1320px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:12px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink);font-weight:800;letter-spacing:-.02em;font-size:18px}
+.brand .dot{width:30px;height:30px;border-radius:9px;background:var(--grad);display:grid;place-items:center;color:#fff;font-size:15px}
+.brand small{font-weight:600;color:var(--muted);font-size:14px}
+.tabs{display:flex;gap:4px;background:var(--surface2);border:1px solid var(--line);padding:4px;border-radius:12px;margin-left:auto}
+.tabs button{border:0;background:none;padding:6px 14px;border-radius:9px;font-weight:700;font-size:14px;color:var(--soft)}
+.tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 0 var(--line2),0 4px 12px -6px rgba(0,0,0,.3)}
+.iconbtn{border:1px solid var(--line);background:var(--surface);width:38px;height:38px;border-radius:11px;display:grid;place-items:center;flex:none}
+.iconbtn svg{width:18px;height:18px}
+@media (max-width:480px){.brand small{display:none}.tabs button{padding:6px 11px}.tb-in{gap:8px}}
+
+/* ======================= Layout ======================= */
+main{max-width:1320px;margin:0 auto;padding:18px 16px 40px}
+.intro{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;margin:0 0 14px}
+.intro h1{margin:0;font-size:24px;letter-spacing:-.02em}
+.intro h1 span{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.intro p{margin:0;color:var(--soft);font-size:14.5px}
+.grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px}
+.grid.sql{grid-template-columns:220px minmax(0,1.1fr) minmax(0,1fr)}
+@media (max-width:1080px){.grid.sql{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.grid.sql .schema{grid-column:1/-1}}
+@media (max-width:820px){.grid,.grid.sql{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.ph{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.ph h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 auto 0 2px;font-weight:700}
+.btn{border:1px solid var(--line2);background:var(--surface2);padding:7px 13px;border-radius:10px;font-weight:700;font-size:14px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{background:var(--raise)}
+.btn.run{background:var(--grad);border-color:transparent;color:#fff;padding:7px 16px}
+.btn.run:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn svg{width:14px;height:14px}
+.kbd{font-size:11px;opacity:.8;font-weight:600}
+select.examples{border:1px solid var(--line2);background:var(--surface2);padding:7px 10px;border-radius:10px;font-weight:600;font-size:14px;max-width:100%;min-width:0}
+
+/* ======================= Editor ======================= */
+.editor{display:flex;background:var(--code);min-height:340px;flex:1;position:relative}
+.gutter{white-space:pre;padding:14px 10px 14px 12px;text-align:right;color:var(--code-muted);user-select:none;font-size:13.5px;line-height:1.6;overflow:hidden;min-width:44px;border-right:1px solid var(--line)}
+.editor textarea{flex:1;min-width:0;border:0;outline:0;resize:none;background:transparent;color:var(--code-ink);padding:14px;font-size:13.5px;line-height:1.6;tab-size:4;white-space:pre;overflow:auto;min-height:340px}
+.editor textarea:focus-visible{outline:none}
+.editor:focus-within{box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--cyan) 55%,transparent)}
+.stdin{border-top:1px solid var(--line)}
+.stdin summary{cursor:pointer;padding:9px 14px;font-size:13.5px;font-weight:700;color:var(--soft);list-style:none;display:flex;gap:8px;align-items:center}
+.stdin summary::-webkit-details-marker{display:none}
+.stdin summary::before{content:"▸";transition:transform .15s}
+.stdin[open] summary::before{transform:rotate(90deg)}
+.stdin summary span{font-weight:500;color:var(--muted)}
+.stdin textarea{display:block;width:100%;border:0;border-top:1px solid var(--line);background:var(--code);color:var(--code-ink);padding:10px 14px;font-size:13.5px;line-height:1.6;resize:vertical;min-height:70px;outline:0}
+
+/* ======================= Output ======================= */
+.status{font-size:12.5px;font-weight:700;padding:3px 10px;border-radius:99px;background:var(--surface2);color:var(--muted);display:inline-flex;align-items:center;gap:6px}
+.status::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.status.busy{color:var(--u1)}
+.status.busy::before{animation:pulse 1s infinite}
+.status.ok{color:var(--ok);background:var(--okbg)}
+.status.bad{color:var(--bad);background:var(--badbg)}
+@keyframes pulse{50%{opacity:.25}}
+.out{flex:1;min-height:340px;max-height:72vh;overflow:auto;background:var(--code);color:var(--code-ink);padding:14px;font-size:13.5px;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+.out .err{color:var(--bad)}
+.out .hint{display:block;margin-top:8px;padding:8px 12px;border-radius:10px;background:var(--badbg);color:var(--ink);font-family:"Inter",system-ui,sans-serif;font-size:13.5px;white-space:normal}
+.out .sys{color:var(--muted);font-style:italic}
+.out img{display:block;max-width:100%;background:#fff;border-radius:10px;margin:10px 0;border:1px solid var(--line)}
+.out .empty{color:var(--muted);font-family:"Inter",system-ui,sans-serif;white-space:normal}
+.out .ok-line{color:var(--ok)}
+.out .q{color:var(--muted);margin-top:12px;display:block}
+.out .q:first-child{margin-top:0}
+
+/* SQL results */
+.tblwrap{overflow:auto;margin:6px 0 4px;border:1px solid var(--line2);border-radius:10px;max-width:100%}
+table.res{border-collapse:collapse;font-size:13px;min-width:100%;white-space:nowrap}
+table.res th,table.res td{padding:6px 12px;border-bottom:1px solid var(--line);text-align:left}
+table.res th{background:var(--surface2);font-weight:700;position:sticky;top:0}
+table.res td.num{text-align:right;font-variant-numeric:tabular-nums}
+table.res td.null{color:var(--muted);font-style:italic}
+table.res tr:last-child td{border-bottom:0}
+.rows{font-family:"Inter",system-ui,sans-serif;font-size:12.5px;color:var(--muted)}
+
+/* Schema sidebar */
+.schema .list{padding:8px;overflow:auto;max-height:72vh}
+.tbl{border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:var(--surface2)}
+.tbl button.name{width:100%;text-align:left;border:0;background:none;padding:8px 10px;font-weight:800;font-size:14px;display:flex;justify-content:space-between;gap:8px}
+.tbl button.name span{font-weight:600;color:var(--muted);font-size:12px}
+.tbl ul{margin:0;padding:0 10px 8px;list-style:none;font-size:12.5px}
+.tbl li{display:flex;justify-content:space-between;gap:8px;color:var(--soft)}
+.tbl li em{font-style:normal;color:var(--muted)}
+.tbl li b{color:var(--ink);font-weight:600}
+.schema .note{font-size:12.5px;color:var(--muted);padding:2px 12px 12px;margin:0}
+
+.foot{margin-top:16px;color:var(--muted);font-size:13px;display:flex;flex-wrap:wrap;gap:6px 18px}
+.foot kbd{font-family:"JetBrains Mono",monospace;font-size:11.5px;background:var(--surface2);border:1px solid var(--line2);border-bottom-width:2px;border-radius:6px;padding:0 5px}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="tb-in">
+    <a class="brand" href="./" title="Back to DigiClass"><span class="dot" aria-hidden="true">D</span>DigiClass <small>Playground</small></a>
+    <div class="tabs" role="tablist" aria-label="Language">
+      <button role="tab" id="tab-py" aria-controls="view-py" aria-selected="true">Python</button>
+      <button role="tab" id="tab-sql" aria-controls="view-sql" aria-selected="false">SQL</button>
+    </div>
+    <button class="iconbtn" id="themeBtn" aria-label="Switch theme" title="Switch theme">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    </button>
+  </div>
+</header>
+
+<main>
+  <!-- ======================= Python ======================= -->
+  <section id="view-py" role="tabpanel" aria-labelledby="tab-py">
+    <div class="intro">
+      <h1><span>Python</span> playground</h1>
+      <p>Real Python 3 in your browser, with pandas and matplotlib for IP. Nothing to install.</p>
+    </div>
+    <div class="grid">
+      <div class="panel">
+        <div class="ph">
+          <h2>Code</h2>
+          <select class="examples" id="pyEx" aria-label="Load an example"></select>
+          <button class="btn run" id="pyRun" disabled>
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4v16l13-8z"/></svg>Run <span class="kbd">Ctrl+↵</span>
+          </button>
+          <button class="btn" id="pyStop" hidden>
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>Stop
+          </button>
+        </div>
+        <div class="editor">
+          <div class="gutter mono" id="pyGut" aria-hidden="true">1</div>
+          <textarea id="pyCode" class="mono" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Python code"></textarea>
+        </div>
+        <details class="stdin" id="pyInWrap">
+          <summary>Input <span>— values for input(), one per line</span></summary>
+          <textarea id="pyIn" class="mono" spellcheck="false" aria-label="Program input, one value per line" placeholder="e.g.&#10;Aisha&#10;17"></textarea>
+        </details>
+      </div>
+      <div class="panel">
+        <div class="ph">
+          <h2>Output</h2>
+          <span class="status busy" id="pyStatus">Loading Python…</span>
+          <button class="btn" id="pyClear">Clear</button>
+        </div>
+        <div class="out mono" id="pyOut" aria-live="polite"><span class="empty">Your output and charts will show up here. The first load downloads Python (about 10 MB), which takes a few seconds.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= SQL ======================= -->
+  <section id="view-sql" role="tabpanel" aria-labelledby="tab-sql" hidden>
+    <div class="intro">
+      <h1><span>SQL</span> playground</h1>
+      <p>Practise MySQL-style queries on sample tables. Your changes are saved on this device until you reset.</p>
+    </div>
+    <div class="grid sql">
+      <div class="panel schema">
+        <div class="ph">
+          <h2>Tables</h2>
+          <button class="btn" id="sqlReset" title="Restore the original sample tables">Reset</button>
+        </div>
+        <div class="list" id="sqlSchema"></div>
+        <p class="note">Tap a table name to view all its rows.</p>
+      </div>
+      <div class="panel">
+        <div class="ph">
+          <h2>Query</h2>
+          <select class="examples" id="sqlEx" aria-label="Load an example query"></select>
+          <button class="btn run" id="sqlRun" disabled>
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4v16l13-8z"/></svg>Run <span class="kbd">Ctrl+↵</span>
+          </button>
+        </div>
+        <div class="editor">
+          <div class="gutter mono" id="sqlGut" aria-hidden="true">1</div>
+          <textarea id="sqlCode" class="mono" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="SQL query"></textarea>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph">
+          <h2>Result</h2>
+          <span class="status busy" id="sqlStatus">Loading…</span>
+          <button class="btn" id="sqlClear">Clear</button>
+        </div>
+        <div class="out mono" id="sqlOut" aria-live="polite"><span class="empty">Results will show up here as a table.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="foot">
+    <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> run</span>
+    <span><kbd>Tab</kbd> indent · <kbd>Shift</kbd>+<kbd>Tab</kbd> unindent</span>
+    <span>Your code is saved on this device automatically.</span>
+    <a href="./">← Back to DigiClass</a>
+  </div>
+</main>
+
+<script>
+(function(){
+"use strict";
+var PYODIDE = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
+var SQLJS = "https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/";
+
+function $(id){ return document.getElementById(id); }
+function store(k,v){ try{ if(v===undefined) return localStorage.getItem(k); localStorage.setItem(k,v); }catch(e){ return null; } }
+function esc(s){ return String(s).replace(/[&<>"]/g,function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+
+/* ======================= Theme ======================= */
+$("themeBtn").onclick=function(){
+  var t=document.documentElement.getAttribute("data-theme")==="dark"?"light":"dark";
+  document.documentElement.setAttribute("data-theme",t); store("dc-pg-theme",t);
+};
+
+/* ======================= Tabs ======================= */
+var views={py:$("view-py"),sql:$("view-sql")};
+function show(name){
+  ["py","sql"].forEach(function(n){
+    $("tab-"+n).setAttribute("aria-selected",n===name); views[n].hidden=n!==name;
+  });
+  store("dc-pg-tab",name);
+  if(name==="sql") loadSql();
+  if(location.hash!=="#"+name) history.replaceState(null,"","#"+name);
+}
+$("tab-py").onclick=function(){ show("py"); };
+$("tab-sql").onclick=function(){ show("sql"); };
+
+/* ======================= Editor (textarea + line numbers) ======================= */
+function makeEditor(ta,gut,key,onRun){
+  function lines(){
+    var n=ta.value.split("\n").length, s="";
+    for(var i=1;i<=n;i++) s+=i+"\n";
+    gut.textContent=s;
+  }
+  ta.addEventListener("input",function(){ lines(); store(key,ta.value); });
+  ta.addEventListener("scroll",function(){ gut.scrollTop=ta.scrollTop; });
+  ta.addEventListener("keydown",function(e){
+    var v=ta.value, a=ta.selectionStart, b=ta.selectionEnd;
+    if((e.ctrlKey||e.metaKey)&&e.key==="Enter"){ e.preventDefault(); onRun(); return; }
+    if(e.key==="Tab"){
+      e.preventDefault();
+      var ls=v.lastIndexOf("\n",a-1)+1;
+      if(e.shiftKey){
+        var m=/^ {1,4}/.exec(v.slice(ls)); if(!m) return;
+        ta.setRangeText("",ls,ls+m[0].length,"end");
+        ta.selectionStart=ta.selectionEnd=Math.max(ls,a-m[0].length);
+      } else if(a!==b && v.slice(a,b).indexOf("\n")>=0){
+        var block=v.slice(ls,b).replace(/^/gm,"    ");
+        ta.setRangeText(block,ls,b,"select");
+      } else ta.setRangeText("    ",a,b,"end");
+      ta.dispatchEvent(new Event("input")); return;
+    }
+    if(e.key==="Enter" && a===b){
+      var start=v.lastIndexOf("\n",a-1)+1, line=v.slice(start,a);
+      var ind=/^\s*/.exec(line)[0];
+      if(/:\s*$/.test(line)) ind+="    ";
+      e.preventDefault(); ta.setRangeText("\n"+ind,a,b,"end");
+      ta.dispatchEvent(new Event("input"));
+    }
+  });
+  return {
+    get:function(){ return ta.value; },
+    set:function(s){ ta.value=s; lines(); store(key,s); ta.scrollTop=0; },
+    init:function(fallback){ var s=store(key); ta.value=s!=null&&s!==""?s:fallback; lines(); }
+  };
+}
+
+function fillExamples(sel,list,onPick){
+  sel.innerHTML='<option value="">Examples…</option>';
+  var groups={};
+  list.forEach(function(ex,i){
+    var g=groups[ex.g]; if(!g){ g=groups[ex.g]=document.createElement("optgroup"); g.label=ex.g; sel.appendChild(g); }
+    var o=document.createElement("option"); o.value=i; o.textContent=ex.t; g.appendChild(o);
+  });
+  sel.onchange=function(){ if(sel.value!==""){ onPick(list[+sel.value]); sel.value=""; } };
+}
+
+function status(el,cls,txt){ el.className="status "+cls; el.textContent=txt; }
+
+/* ======================= Python examples ======================= */
+var PY_EX=[
+ {g:"Basics",t:"Hello + input()",in:"Aisha\n16",c:
+'name = input("Enter your name: ")\nage = int(input("Enter your age: "))\n\nprint("Hello,", name + "!")\nprint("In 5 years you will be", age + 5)\n'},
+ {g:"Basics",t:"Number pattern (nested loops)",c:
+'n = 5\nfor i in range(1, n + 1):\n    for j in range(1, i + 1):\n        print(j, end=" ")\n    print()\n'},
+ {g:"Basics",t:"Prime numbers up to 50",c:
+'def is_prime(n):\n    if n < 2:\n        return False\n    for d in range(2, int(n ** 0.5) + 1):\n        if n % d == 0:\n            return False\n    return True\n\nprimes = [n for n in range(1, 51) if is_prime(n)]\nprint("Primes:", primes)\nprint("Count:", len(primes))\n'},
+ {g:"Strings, lists, dictionaries",t:"Palindrome check",in:"Malayalam",c:
+'word = input("Enter a word: ")\nclean = word.lower()\n\nif clean == clean[::-1]:\n    print(word, "is a palindrome")\nelse:\n    print(word, "is not a palindrome")\n'},
+ {g:"Strings, lists, dictionaries",t:"List operations",c:
+'marks = [78, 92, 65, 88, 71, 95, 59]\n\nprint("Marks   :", marks)\nprint("Highest :", max(marks))\nprint("Lowest  :", min(marks))\nprint("Average :", round(sum(marks) / len(marks), 2))\n\nmarks.sort(reverse=True)\nprint("Top 3   :", marks[:3])\n'},
+ {g:"Strings, lists, dictionaries",t:"Word frequency (dictionary)",c:
+'text = "the quick brown fox jumps over the lazy dog the fox"\n\nfreq = {}\nfor word in text.split():\n    freq[word] = freq.get(word, 0) + 1\n\nfor word, count in sorted(freq.items(), key=lambda x: -x[1]):\n    print(f"{word:<6} {count}")\n'},
+ {g:"Class 12 CS",t:"Recursion: factorial & Fibonacci",c:
+'def factorial(n):\n    if n <= 1:\n        return 1\n    return n * factorial(n - 1)\n\ndef fib(n):\n    if n <= 1:\n        return n\n    return fib(n - 1) + fib(n - 2)\n\nprint("5! =", factorial(5))\nprint("First 10 Fibonacci:", [fib(i) for i in range(10)])\n'},
+ {g:"Class 12 CS",t:"Stack using a list",c:
+'stack = []\n\ndef push(item):\n    stack.append(item)\n    print("Pushed", item, "->", stack)\n\ndef pop():\n    if not stack:\n        print("Underflow! Stack is empty")\n        return None\n    item = stack.pop()\n    print("Popped", item, "->", stack)\n    return item\n\npush(10)\npush(20)\npush(30)\npop()\npop()\npop()\npop()\n'},
+ {g:"Class 12 CS",t:"Text file handling",c:
+'# Write a file\nwith open("poem.txt", "w") as f:\n    f.write("Twinkle twinkle little star\\n")\n    f.write("How I wonder what you are\\n")\n    f.write("Up above the world so high\\n")\n\n# Read it back\nwith open("poem.txt") as f:\n    lines = f.readlines()\n\nprint("Lines:", len(lines))\nfor line in lines:\n    words = line.split()\n    print(len(words), "words ->", line.strip())\n'},
+ {g:"Class 12 CS",t:"CSV file handling",c:
+'import csv\n\nrows = [["RollNo", "Name", "Marks"], [1, "Aisha", 91], [2, "Rahul", 78], [3, "Meera", 85]]\n\nwith open("students.csv", "w", newline="") as f:\n    csv.writer(f).writerows(rows)\n\nwith open("students.csv") as f:\n    reader = csv.reader(f)\n    next(reader)  # skip header\n    for roll, name, marks in reader:\n        if int(marks) > 80:\n            print(name, "scored", marks)\n'},
+ {g:"Class 12 CS",t:"Binary file (pickle)",c:
+'import pickle\n\nbooks = [{"id": 1, "title": "Python Basics", "price": 350},\n         {"id": 2, "title": "SQL Made Easy", "price": 275}]\n\nwith open("books.dat", "wb") as f:\n    pickle.dump(books, f)\n\nwith open("books.dat", "rb") as f:\n    data = pickle.load(f)\n\nfor b in data:\n    print(b["id"], b["title"], "Rs", b["price"])\n'},
+ {g:"IP: pandas & matplotlib",t:"pandas Series",c:
+'import pandas as pd\n\nmarks = pd.Series([78, 92, 65, 88], index=["Aisha", "Rahul", "Meera", "Arjun"])\nprint(marks)\nprint()\nprint("Above 75:")\nprint(marks[marks > 75])\nprint()\nprint("Mean:", marks.mean())\n'},
+ {g:"IP: pandas & matplotlib",t:"pandas DataFrame",c:
+'import pandas as pd\n\ndata = {\n    "Name": ["Aisha", "Rahul", "Meera", "Arjun", "Zara"],\n    "Class": ["12A", "12B", "12A", "12B", "12A"],\n    "Marks": [91, 78, 85, 66, 94],\n}\ndf = pd.DataFrame(data)\nprint(df)\nprint()\nprint("Students with Marks > 80:")\nprint(df[df["Marks"] > 80])\nprint()\nprint("Average marks by class:")\nprint(df.groupby("Class")["Marks"].mean())\n'},
+ {g:"IP: pandas & matplotlib",t:"Bar chart",c:
+'import matplotlib.pyplot as plt\n\nsubjects = ["English", "Maths", "Physics", "CS", "Chemistry"]\nmarks = [82, 91, 76, 97, 69]\n\nplt.bar(subjects, marks, color="#3D7BFF")\nplt.title("My Term 1 Marks")\nplt.xlabel("Subject")\nplt.ylabel("Marks")\nplt.ylim(0, 100)\nplt.show()\n'},
+ {g:"IP: pandas & matplotlib",t:"Line chart",c:
+'import matplotlib.pyplot as plt\n\nmonths = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"]\nsales_a = [120, 135, 150, 145, 170, 190]\nsales_b = [100, 110, 140, 160, 155, 175]\n\nplt.plot(months, sales_a, marker="o", label="Shop A")\nplt.plot(months, sales_b, marker="s", linestyle="--", label="Shop B")\nplt.title("Monthly Sales")\nplt.xlabel("Month")\nplt.ylabel("Units sold")\nplt.legend()\nplt.grid(True, alpha=0.3)\nplt.show()\n'},
+ {g:"IP: pandas & matplotlib",t:"Histogram",c:
+'import matplotlib.pyplot as plt\n\nheights = [150, 152, 155, 158, 160, 161, 162, 163, 165, 165,\n           166, 168, 170, 171, 172, 175, 178, 180, 182, 185]\n\nplt.hist(heights, bins=[150, 160, 170, 180, 190], edgecolor="black", color="#8B5CF6")\nplt.title("Heights of Class 12 students")\nplt.xlabel("Height (cm)")\nplt.ylabel("Number of students")\nplt.show()\n'},
+ {g:"IP: pandas & matplotlib",t:"DataFrame to chart",c:
+'import pandas as pd\nimport matplotlib.pyplot as plt\n\ndf = pd.DataFrame({\n    "Year": [2021, 2022, 2023, 2024, 2025],\n    "Boys": [42, 48, 51, 55, 60],\n    "Girls": [38, 45, 53, 58, 64],\n})\nprint(df)\n\ndf.plot(x="Year", y=["Boys", "Girls"], kind="bar", title="Admissions per year")\nplt.ylabel("Students")\nplt.show()\n'}
+];
+
+/* ======================= Python runner (Web Worker) ======================= */
+// Code runs in a worker so a runaway loop never freezes the page: Stop just restarts the worker.
+var WORKER_SRC = [
+'importScripts("'+PYODIDE+'pyodide.js");',
+'var py, dec=new TextDecoder();',
+'function send(t,s){ postMessage({t:t,s:s}); }',
+'function writer(t){ return { write:function(buf){ send(t,dec.decode(buf,{stream:true})); return buf.length; } }; }',
+'var SETUP = [',
+'"import builtins, sys, os",',
+'"os.environ[\'MPLBACKEND\'] = \'AGG\'",',
+'"_dc_q = []",',
+'"def _dc_input(prompt=\'\'):",',
+'"    sys.stdout.write(str(prompt))",',
+'"    if not _dc_q:",',
+'"        sys.stdout.flush()",',
+'"        raise EOFError(\'input() needs a value. Type it in the Input box below the code (one value per line).\')",',
+'"    v = _dc_q.pop(0)",',
+'"    sys.stdout.write(v + \'\\\\n\')",',
+'"    return v",',
+'"builtins.input = _dc_input",',
+'].join("\\n");',
+'var MPL = [',
+'"import io, base64, sys",',
+'"import matplotlib",',
+'"matplotlib.use(\'AGG\')",',
+'"import matplotlib.pyplot as plt",',
+'"def _dc_show(*a, **k):",',
+'"    sys.stdout.flush(); sys.stderr.flush()",',
+'"    for n in plt.get_fignums():",',
+'"        b = io.BytesIO()",',
+'"        plt.figure(n).savefig(b, format=\'png\', dpi=110, bbox_inches=\'tight\')",',
+'"        _dc_img(base64.b64encode(b.getvalue()).decode())",',
+'"    plt.close(\'all\')",',
+'"plt.show = _dc_show",',
+'].join("\\n");',
+'var mpl=false;',
+'async function boot(){',
+'  py = await loadPyodide({ indexURL: "'+PYODIDE+'" });',
+'  py.setStdout(writer("out")); py.setStderr(writer("err"));',
+'  py.globals.set("_dc_img", function(s){ send("img",s); });',
+'  py.runPython(SETUP);',
+'  send("ready");',
+'}',
+'var booting = boot().catch(function(e){ send("fatal", String(e && e.message || e)); });',
+'onmessage = async function(ev){',
+'  await booting; var m=ev.data, t0=performance.now();',
+'  try{',
+'    await py.loadPackagesFromImports(m.code, { messageCallback:function(){ send("status","Loading libraries…"); }, errorCallback:function(){} });',
+'    if(!mpl && /\\bmatplotlib\\b|\\.plot\\(|\\.hist\\(/.test(m.code)){',
+'      if(!/\\bmatplotlib\\b/.test(m.code)) await py.loadPackage("matplotlib");',
+'      send("status","Loading libraries…"); py.runPython(MPL); mpl=true;',
+'    }',
+'    send("status","Running…");',
+'    py.globals.set("_dc_raw", m.stdin);',
+'    py.runPython("_dc_q[:] = _dc_raw.split(\'\\\\n\') if _dc_raw else []");',
+'    var ns = py.globals.get("dict")();',
+'    ns.set("__name__","__main__");',
+'    await py.runPythonAsync(m.code, { globals: ns, filename: "main.py" });',
+'    if(mpl) py.runPython("_dc_show() if plt.get_fignums() else None");',
+'    py.runPython("import sys; sys.stdout.flush(); sys.stderr.flush()");',
+'    ns.destroy();',
+'    send("done", Math.round(performance.now()-t0));',
+'  }catch(e){',
+'    try{ py.runPython("import sys; sys.stdout.flush(); sys.stderr.flush()"); }catch(_){}',
+'    send("error", String(e && e.message || e));',
+'  }',
+'};'
+].join("\n");
+
+var pyEd=makeEditor($("pyCode"),$("pyGut"),"dc-pg-py",runPy);
+pyEd.init(PY_EX[0].c);
+if(store("dc-pg-py")==null){ $("pyIn").value=PY_EX[0].in; $("pyInWrap").open=true; }
+else { $("pyIn").value=store("dc-pg-pyin")||""; if($("pyIn").value) $("pyInWrap").open=true; }
+$("pyIn").addEventListener("input",function(){ store("dc-pg-pyin",$("pyIn").value); });
+fillExamples($("pyEx"),PY_EX,function(ex){
+  pyEd.set(ex.c); $("pyIn").value=ex.in||""; store("dc-pg-pyin",$("pyIn").value);
+  $("pyInWrap").open=!!ex.in; $("pyCode").focus();
+});
+
+var pyOut=$("pyOut"), pyStatus=$("pyStatus"), worker=null, ready=false, running=false, timer=null;
+function outText(s,cls){
+  var last=pyOut.lastChild;
+  if(last && last.nodeType===1 && last.tagName==="SPAN" && last.className===(cls||"txt")) last.textContent+=s;
+  else { var sp=document.createElement("span"); sp.className=cls||"txt"; sp.textContent=s; pyOut.appendChild(sp); }
+  pyOut.scrollTop=pyOut.scrollHeight;
+}
+function clearOut(el){ el.textContent=""; }
+
+// Pyodide errors include its own internal frames; keep only the student's part of the traceback.
+function tidyError(msg){
+  var lines=msg.replace(/\s+$/,"").split("\n"), i=-1;
+  for(var k=0;k<lines.length;k++) if(/File "(main\.py|<exec>)"/.test(lines[k])){ i=k; break; }
+  var tb=i>=0 ? lines.slice(i) : null;
+  if(tb){
+    // Drop frames from the playground's own helpers (e.g. the input() replacement).
+    tb=tb.filter(function(l,k,a){
+      if(/File "<exec>"/.test(l)) return false;
+      for(var j=k-1;j>=0&&/^\s{4}/.test(a[j]);j--);
+      return !(k>0&&/^\s{4}/.test(l)&&j>=0&&/File "<exec>"/.test(a[j]));
+    });
+  }
+  var body=tb ? "Traceback (most recent call last):\n"+tb.join("\n") : msg;
+  var last=lines[lines.length-1]||"", hint="";
+  if(/^IndentationError/.test(last)) hint="Check the spaces at the start of the line shown above. Lines inside if/for/while/def must be indented by the same amount (4 spaces).";
+  else if(/^NameError/.test(last)) hint="Python doesn't know this name. Check the spelling and capital letters, and make sure the variable is created before you use it.";
+  else if(/^SyntaxError/.test(last)) hint="Python couldn't understand this line. Look for a missing colon (:), bracket, or quote mark.";
+  else if(/^TypeError.*(str|concatenate)/.test(last)) hint="You may be mixing text and numbers. input() always gives text, so use int(...) or float(...) to convert it.";
+  else if(/^ZeroDivisionError/.test(last)) hint="Something is being divided by zero.";
+  else if(/^IndexError/.test(last)) hint="You asked for a position that isn't in the list or string. Remember positions start at 0.";
+  else if(/^KeyError/.test(last)) hint="That key isn't in the dictionary (or that column isn't in the DataFrame). Check the spelling.";
+  else if(/^ModuleNotFoundError/.test(last)) hint="This library isn't available in the browser playground.";
+  return {body:body,hint:hint};
+}
+
+function startWorker(){
+  ready=false; $("pyRun").disabled=true;
+  status(pyStatus,"busy","Loading Python…");
+  worker=new Worker(URL.createObjectURL(new Blob([WORKER_SRC],{type:"text/javascript"})));
+  worker.onmessage=function(ev){
+    var m=ev.data;
+    if(m.t==="ready"){ ready=true; $("pyRun").disabled=false; status(pyStatus,"","Ready"); }
+    else if(m.t==="out") outText(m.s);
+    else if(m.t==="err") outText(m.s,"err");
+    else if(m.t==="status") status(pyStatus,"busy",m.s);
+    else if(m.t==="img"){
+      var img=new Image(); img.alt="Chart drawn by your program"; img.src="data:image/png;base64,"+m.s;
+      pyOut.appendChild(img); img.onload=function(){ pyOut.scrollTop=pyOut.scrollHeight; };
+    }
+    else if(m.t==="done"){ finish(); status(pyStatus,"ok","Done in "+(m.s/1000).toFixed(2)+" s"); if(!pyOut.childNodes.length) outText("(Program finished with no output)","sys"); }
+    else if(m.t==="error"){
+      finish(); status(pyStatus,"bad","Error");
+      var e=tidyError(m.s);
+      if(pyOut.lastChild && !/\n$/.test(pyOut.textContent)) outText("\n");
+      outText(e.body,"err");
+      if(e.hint){ var h=document.createElement("span"); h.className="hint"; h.textContent="💡 "+e.hint; pyOut.appendChild(h); }
+      pyOut.scrollTop=pyOut.scrollHeight;
+    }
+    else if(m.t==="fatal"){ status(pyStatus,"bad","Couldn't load"); outText("Python couldn't be downloaded. Check your internet connection and reload the page.\n("+m.s+")","err"); }
+  };
+}
+function finish(){ running=false; clearTimeout(timer); $("pyStop").hidden=true; $("pyRun").disabled=false; }
+function runPy(){
+  if(!ready||running) return;
+  running=true; clearOut(pyOut);
+  $("pyRun").disabled=true; $("pyStop").hidden=false;
+  status(pyStatus,"busy","Running…");
+  worker.postMessage({code:pyEd.get(), stdin:$("pyIn").value.replace(/\n+$/,"")});
+  // Gentle nudge if something seems stuck (e.g. a while loop that never ends).
+  timer=setTimeout(function(){ if(running) status(pyStatus,"busy","Still running… press Stop if it's stuck"); },8000);
+}
+$("pyRun").onclick=runPy;
+$("pyStop").onclick=function(){
+  if(!running) return;
+  worker.terminate(); finish();
+  outText("\n■ Stopped. Restarting Python…\n","sys");
+  startWorker();
+};
+$("pyClear").onclick=function(){ clearOut(pyOut); };
+startWorker();
+
+/* ======================= SQL ======================= */
+var SAMPLE_SQL=[
+"CREATE TABLE STUDENT (RollNo INTEGER PRIMARY KEY, Name VARCHAR(30) NOT NULL, Class CHAR(3), Gender CHAR(1), Marks DECIMAL(5,1), City VARCHAR(20), DOB DATE);",
+"INSERT INTO STUDENT VALUES",
+" (1,'Aisha Rahman','12A','F',91.5,'Chennai','2008-03-14'),",
+" (2,'Rahul Verma','12B','M',78.0,'Delhi','2008-07-22'),",
+" (3,'Meera Nair','12A','F',85.5,'Kochi','2008-01-09'),",
+" (4,'Arjun Singh','12B','M',66.0,'Delhi','2007-11-30'),",
+" (5,'Zara Khan','12A','F',94.0,'Mumbai','2008-05-02'),",
+" (6,'Vikram Iyer','11A','M',72.5,'Chennai','2009-02-17'),",
+" (7,'Sneha Patel','11A','F',88.0,'Ahmedabad','2009-09-05'),",
+" (8,'Kabir Das','11B','M',NULL,'Kolkata','2009-04-25'),",
+" (9,'Fatima Sheikh','11B','F',79.5,'Mumbai','2009-12-11'),",
+" (10,'Rohan Mehta','12B','M',58.0,'Pune','2008-08-19');",
+"CREATE TABLE DEPT (DeptNo INTEGER PRIMARY KEY, DName VARCHAR(20), Location VARCHAR(20));",
+"INSERT INTO DEPT VALUES (10,'Sales','Mumbai'),(20,'IT','Bengaluru'),(30,'HR','Delhi'),(40,'Finance','Chennai');",
+"CREATE TABLE EMPLOYEE (EmpNo INTEGER PRIMARY KEY, EName VARCHAR(25), Job VARCHAR(20), Salary INTEGER, DeptNo INTEGER REFERENCES DEPT(DeptNo), HireDate DATE);",
+"INSERT INTO EMPLOYEE VALUES",
+" (101,'Anil Kumar','Manager',85000,10,'2015-06-01'),",
+" (102,'Priya Sharma','Developer',72000,20,'2018-02-15'),",
+" (103,'Suresh Rao','Clerk',32000,30,'2020-09-10'),",
+" (104,'Neha Gupta','Developer',68000,20,'2019-11-25'),",
+" (105,'Ravi Teja','Salesman',41000,10,'2021-04-05'),",
+" (106,'Divya Menon','Analyst',59000,40,'2017-08-30'),",
+" (107,'Imran Ali','Salesman',39000,10,'2022-01-17'),",
+" (108,'Lakshmi Pillai','Manager',91000,20,'2012-03-12'),",
+" (109,'Karan Joshi','Clerk',30000,NULL,'2023-07-01');",
+"CREATE TABLE PRODUCT (PCode CHAR(4) PRIMARY KEY, PName VARCHAR(25), Category VARCHAR(15), Price DECIMAL(8,2), Qty INTEGER);",
+"INSERT INTO PRODUCT VALUES",
+" ('P001','Notebook','Stationery',45.00,500),",
+" ('P002','Ball Pen','Stationery',10.00,1200),",
+" ('P003','Calculator','Electronics',650.00,40),",
+" ('P004','USB Drive 32GB','Electronics',399.00,75),",
+" ('P005','Geometry Box','Stationery',120.00,0),",
+" ('P006','Headphones','Electronics',1299.00,18);"
+].join("\n");
+
+var SQL_EX=[
+ {g:"Basics",t:"See all students",c:"SELECT * FROM STUDENT;"},
+ {g:"Basics",t:"Pick columns + WHERE",c:"SELECT Name, Class, Marks\nFROM STUDENT\nWHERE Marks > 80;"},
+ {g:"Basics",t:"ORDER BY",c:"SELECT Name, Marks\nFROM STUDENT\nORDER BY Marks DESC;"},
+ {g:"Basics",t:"LIKE, IN, BETWEEN",c:"SELECT Name, City FROM STUDENT WHERE Name LIKE 'A%';\n\nSELECT Name, City FROM STUDENT WHERE City IN ('Delhi', 'Mumbai');\n\nSELECT EName, Salary FROM EMPLOYEE WHERE Salary BETWEEN 40000 AND 70000;"},
+ {g:"Basics",t:"IS NULL / DISTINCT",c:"SELECT Name FROM STUDENT WHERE Marks IS NULL;\n\nSELECT DISTINCT City FROM STUDENT;"},
+ {g:"Aggregates & grouping",t:"COUNT, SUM, AVG, MAX, MIN",c:"SELECT COUNT(*) AS Total, COUNT(Marks) AS WithMarks,\n       AVG(Marks) AS Average, MAX(Marks) AS Highest, MIN(Marks) AS Lowest\nFROM STUDENT;"},
+ {g:"Aggregates & grouping",t:"GROUP BY + HAVING",c:"SELECT Class, COUNT(*) AS Students, ROUND(AVG(Marks), 1) AS AvgMarks\nFROM STUDENT\nGROUP BY Class\nHAVING AVG(Marks) > 75;"},
+ {g:"Aggregates & grouping",t:"Salary per department",c:"SELECT DeptNo, COUNT(*) AS Staff, SUM(Salary) AS TotalSalary\nFROM EMPLOYEE\nGROUP BY DeptNo\nORDER BY TotalSalary DESC;"},
+ {g:"Joins",t:"Equi-join EMPLOYEE & DEPT",c:"SELECT E.EName, E.Job, D.DName, D.Location\nFROM EMPLOYEE E, DEPT D\nWHERE E.DeptNo = D.DeptNo;"},
+ {g:"Joins",t:"NATURAL JOIN",c:"SELECT EName, DName\nFROM EMPLOYEE NATURAL JOIN DEPT;"},
+ {g:"Functions",t:"Text functions",c:"SELECT Name,\n       UCASE(Name) AS Upper,\n       LENGTH(Name) AS Len,\n       LEFT(Name, 3) AS First3,\n       MID(Name, 2, 4) AS Mid4,\n       INSTR(Name, 'a') AS PosOfA\nFROM STUDENT;"},
+ {g:"Functions",t:"Math functions",c:"SELECT PName, Price,\n       ROUND(Price * 1.18, 2) AS WithGST,\n       MOD(Qty, 7) AS Leftover,\n       POWER(2, 5) AS TwoPow5\nFROM PRODUCT;"},
+ {g:"Functions",t:"Date functions",c:"SELECT EName, HireDate,\n       YEAR(HireDate) AS Yr,\n       MONTHNAME(HireDate) AS Mon,\n       DAYNAME(HireDate) AS Day\nFROM EMPLOYEE;\n\nSELECT NOW(), CURDATE();"},
+ {g:"Changing data",t:"INSERT",c:"INSERT INTO STUDENT (RollNo, Name, Class, Gender, Marks, City)\nVALUES (11, 'Ananya Bose', '12A', 'F', 89, 'Kolkata');\n\nSELECT * FROM STUDENT WHERE RollNo = 11;"},
+ {g:"Changing data",t:"UPDATE",c:"UPDATE EMPLOYEE\nSET Salary = Salary * 1.10\nWHERE Job = 'Clerk';\n\nSELECT EName, Job, Salary FROM EMPLOYEE WHERE Job = 'Clerk';"},
+ {g:"Changing data",t:"DELETE",c:"DELETE FROM PRODUCT WHERE Qty = 0;\n\nSELECT * FROM PRODUCT;"},
+ {g:"Tables",t:"SHOW TABLES / DESC",c:"SHOW TABLES;\n\nDESC STUDENT;"},
+ {g:"Tables",t:"CREATE TABLE + ALTER",c:"CREATE TABLE CLUB (\n  ClubID INT PRIMARY KEY,\n  CName VARCHAR(20) NOT NULL,\n  Teacher VARCHAR(25)\n);\n\nINSERT INTO CLUB VALUES (1, 'Coding', 'Ms Firthouse'), (2, 'Robotics', 'Mr Anand');\n\nALTER TABLE CLUB ADD Members INT DEFAULT 0;\n\nDESC CLUB;\nSELECT * FROM CLUB;"}
+];
+
+var SQL=null, db=null, sqlLoading=false;
+var sqlEd=makeEditor($("sqlCode"),$("sqlGut"),"dc-pg-sql",runSql);
+sqlEd.init(SQL_EX[1].c);
+fillExamples($("sqlEx"),SQL_EX,function(ex){ sqlEd.set(ex.c); $("sqlCode").focus(); });
+
+function b64enc(u8){ var s="",CH=0x8000; for(var i=0;i<u8.length;i+=CH) s+=String.fromCharCode.apply(null,u8.subarray(i,i+CH)); return btoa(s); }
+function b64dec(s){ return Uint8Array.from(atob(s),function(c){ return c.charCodeAt(0); }); }
+
+var MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
+var DAYS=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+function d8(v){ if(v==null) return null; var d=new Date(String(v).slice(0,10)+"T00:00:00"); return isNaN(d)?null:d; }
+function pad(n){ return (n<10?"0":"")+n; }
+
+// SQLite is close to MySQL; add the MySQL functions the CBSE syllabus uses that SQLite lacks.
+function mysqlFns(d){
+  d.create_function("UCASE",function(s){ return s==null?null:String(s).toUpperCase(); });
+  d.create_function("LCASE",function(s){ return s==null?null:String(s).toLowerCase(); });
+  d.create_function("MID",function(s,p,n){ return s==null?null:String(s).substr(p-1,n); });
+  d.create_function("LEFT",function(s,n){ return s==null?null:String(s).slice(0,n); });
+  d.create_function("RIGHT",function(s,n){ return s==null?null:(n>0?String(s).slice(-n):""); });
+  d.create_function("MOD",function(a,b){ return a==null||b==null||b===0?null:a%b; });
+  d.create_function("POW",function(a,b){ return a==null||b==null?null:Math.pow(a,b); });
+  d.create_function("TRUNCATE",function(x,n){ if(x==null) return null; var f=Math.pow(10,n||0); return Math.trunc(x*f)/f; });
+  d.create_function("YEAR",function(v){ var x=d8(v); return x&&x.getFullYear(); });
+  d.create_function("MONTH",function(v){ var x=d8(v); return x&&x.getMonth()+1; });
+  d.create_function("DAY",function(v){ var x=d8(v); return x&&x.getDate(); });
+  d.create_function("DAYOFMONTH",function(v){ var x=d8(v); return x&&x.getDate(); });
+  d.create_function("MONTHNAME",function(v){ var x=d8(v); return x&&MONTHS[x.getMonth()]; });
+  d.create_function("DAYNAME",function(v){ var x=d8(v); return x&&DAYS[x.getDay()]; });
+  d.create_function("NOW",function(){ var x=new Date(); return x.getFullYear()+"-"+pad(x.getMonth()+1)+"-"+pad(x.getDate())+" "+pad(x.getHours())+":"+pad(x.getMinutes())+":"+pad(x.getSeconds()); });
+  d.create_function("SYSDATE",function(){ var x=new Date(); return x.getFullYear()+"-"+pad(x.getMonth()+1)+"-"+pad(x.getDate())+" "+pad(x.getHours())+":"+pad(x.getMinutes())+":"+pad(x.getSeconds()); });
+  d.create_function("CURDATE",function(){ var x=new Date(); return x.getFullYear()+"-"+pad(x.getMonth()+1)+"-"+pad(x.getDate()); });
+}
+
+function openDb(bytes){
+  if(db) db.close();
+  db=bytes?new SQL.Database(bytes):new SQL.Database();
+  mysqlFns(db);
+  if(!bytes) db.exec(SAMPLE_SQL);
+  renderSchema();
+}
+function saveDb(){ store("dc-pg-db",b64enc(db.export())); }
+
+function loadSql(){
+  if(SQL||sqlLoading) return; sqlLoading=true;
+  var s=document.createElement("script"); s.src=SQLJS+"sql-wasm.js";
+  s.onload=function(){
+    initSqlJs({locateFile:function(f){ return SQLJS+f; }}).then(function(S){
+      SQL=S;
+      var saved=store("dc-pg-db");
+      try{ openDb(saved?b64dec(saved):null); }catch(e){ openDb(null); }
+      $("sqlRun").disabled=false; status($("sqlStatus"),"","Ready");
+    },fail);
+  };
+  s.onerror=fail; document.head.appendChild(s);
+  function fail(){ sqlLoading=false; status($("sqlStatus"),"bad","Couldn't load"); $("sqlOut").innerHTML='<span class="err">The SQL engine couldn\'t be downloaded. Check your internet connection and reload the page.</span>'; }
+}
+
+function q1(sql,params){ var st=db.prepare(sql); if(params) st.bind(params); var rows=[]; while(st.step()) rows.push(st.get()); st.free(); return rows; }
+function quoteId(n){ return '"'+String(n).replace(/"/g,'""')+'"'; }
+
+function renderSchema(){
+  var box=$("sqlSchema"); box.textContent="";
+  q1("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").forEach(function(r){
+    var name=r[0], count=q1("SELECT COUNT(*) FROM "+quoteId(name))[0][0];
+    var d=document.createElement("div"); d.className="tbl";
+    var b=document.createElement("button"); b.className="name"; b.type="button";
+    b.innerHTML=esc(name)+" <span>"+count+" row"+(count===1?"":"s")+"</span>";
+    b.onclick=function(){ sqlEd.set("SELECT * FROM "+name+";"); runSql(); };
+    var ul=document.createElement("ul");
+    q1("SELECT name, type, pk FROM pragma_table_info(?)",[name]).forEach(function(c){
+      var li=document.createElement("li");
+      li.innerHTML="<b>"+esc(c[0])+(c[2]?" 🔑":"")+"</b><em>"+esc(c[1]||"")+"</em>";
+      ul.appendChild(li);
+    });
+    d.appendChild(b); d.appendChild(ul); box.appendChild(d);
+  });
+}
+
+// Split on semicolons that aren't inside quotes or comments.
+function splitSql(src){
+  var out=[], cur="", q=null;
+  for(var i=0;i<src.length;i++){
+    var c=src[i];
+    if(q){ cur+=c; if(c===q) q=null; continue; }
+    if(c==="'"||c==='"'||c==="`"){ q=c; cur+=c; continue; }
+    if(c==="-"&&src[i+1]==="-"){ var e=src.indexOf("\n",i); if(e<0) e=src.length; i=e-1; continue; }
+    if(c==="#"){ var e2=src.indexOf("\n",i); if(e2<0) e2=src.length; i=e2-1; continue; }
+    if(c===";"){ if(cur.trim()) out.push(cur.trim()); cur=""; continue; }
+    cur+=c;
+  }
+  if(cur.trim()) out.push(cur.trim());
+  return out;
+}
+
+// Translate the MySQL-only commands students learn into SQLite equivalents.
+function translate(stmt){
+  var m;
+  if(/^show\s+tables$/i.test(stmt))
+    return {sql:"SELECT name AS Tables_in_digiclass FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"};
+  if((m=/^(?:desc|describe)\s+[`"]?(\w+)[`"]?$/i.exec(stmt))){
+    if(!q1("SELECT 1 FROM sqlite_master WHERE type='table' AND name=? COLLATE NOCASE",[m[1]]).length)
+      return {err:"Table '"+m[1]+"' doesn't exist"};
+    return {sql:"SELECT name AS Field, type AS Type, CASE WHEN \"notnull\" OR pk THEN 'NO' ELSE 'YES' END AS \"Null\", CASE WHEN pk THEN 'PRI' ELSE '' END AS \"Key\", dflt_value AS \"Default\" FROM pragma_table_info('"+m[1]+"')"};
+  }
+  if(/^(use|create\s+database|drop\s+database|show\s+databases)\b/i.test(stmt))
+    return {info:"You're already inside a practice database, so this command isn't needed here."};
+  return {sql:stmt.replace(/`/g,'"')};
+}
+
+function cell(v){
+  if(v===null) return '<td class="null">NULL</td>';
+  if(typeof v==="number") return '<td class="num">'+(Number.isInteger(v)?v:+v.toFixed(6))+"</td>";
+  if(v instanceof Uint8Array) return "<td>(binary)</td>";
+  return "<td>"+esc(v)+"</td>";
+}
+
+function sqlHint(msg){
+  if(/no such table/i.test(msg)) return "Check the table name. Tap a table on the left to see the ones you can use.";
+  if(/no such column/i.test(msg)) return "Check the column name and spelling. The columns are listed under each table on the left.";
+  if(/syntax error/i.test(msg)) return "Look for a missing comma, bracket or quote mark, or a keyword in the wrong order (SELECT → FROM → WHERE → GROUP BY → HAVING → ORDER BY).";
+  if(/UNIQUE constraint|PRIMARY KEY/i.test(msg)) return "A row with that primary key already exists. Primary key values must be unique.";
+  if(/NOT NULL constraint/i.test(msg)) return "That column can't be left empty (it's NOT NULL).";
+  if(/no such function/i.test(msg)) return "That function isn't available here. Most MySQL text, math and date functions from the syllabus are supported.";
+  return "";
+}
+
+function runSql(){
+  if(!db) return;
+  var out=$("sqlOut"), html="", changed=false, ok=true, t0=performance.now();
+  var stmts=splitSql(sqlEd.get());
+  if(!stmts.length){ out.innerHTML='<span class="empty">Type a query first.</span>'; return; }
+  stmts.forEach(function(s){
+    if(!ok) return;
+    var label=s.length>90?s.slice(0,87).replace(/\s+/g," ")+"…":s.replace(/\s+/g," ");
+    if(stmts.length>1) html+='<span class="q">mysql&gt; '+esc(label)+";</span>";
+    var tr=translate(s);
+    if(tr.info){ html+='<span class="sys">'+esc(tr.info)+"</span>\n"; return; }
+    if(tr.err){ ok=false; html+='<span class="err">ERROR: '+esc(tr.err)+"</span>"; return; }
+    try{
+      var res=db.exec(tr.sql);
+      if(res.length){
+        res.forEach(function(r){
+          html+='<div class="tblwrap"><table class="res"><thead><tr>'+r.columns.map(function(c){ return "<th>"+esc(c)+"</th>"; }).join("")+"</tr></thead><tbody>";
+          r.values.forEach(function(row){ html+="<tr>"+row.map(cell).join("")+"</tr>"; });
+          html+='</tbody></table></div><span class="rows">'+r.values.length+" row"+(r.values.length===1?"":"s")+" in set</span>\n";
+        });
+      } else if(/^\s*select\b/i.test(tr.sql)){
+        html+='<span class="rows">Empty set (0 rows)</span>\n';
+      } else {
+        changed=true;
+        var n=db.getRowsModified();
+        html+='<span class="ok-line">Query OK'+(/^\s*(insert|update|delete|replace)\b/i.test(tr.sql)?", "+n+" row"+(n===1?"":"s")+" affected":"")+"</span>\n";
+      }
+    }catch(e){
+      ok=false;
+      var msg=String(e.message||e), h=sqlHint(msg);
+      html+='<span class="err">ERROR: '+esc(msg)+"</span>";
+      if(h) html+='<span class="hint">💡 '+esc(h)+"</span>";
+    }
+  });
+  out.innerHTML=html;
+  status($("sqlStatus"),ok?"ok":"bad",ok?"Done in "+Math.max(1,Math.round(performance.now()-t0))+" ms":"Error");
+  if(changed){ saveDb(); renderSchema(); }
+}
+$("sqlRun").onclick=runSql;
+$("sqlClear").onclick=function(){ $("sqlOut").textContent=""; };
+$("sqlReset").onclick=function(){
+  if(!db||!confirm("Reset all tables to the original sample data? Your changes will be lost.")) return;
+  openDb(null); saveDb(); $("sqlOut").innerHTML='<span class="ok-line">Sample tables restored.</span>';
+};
+
+/* ======================= Start ======================= */
+var start=(location.hash||"").slice(1);
+if(start!=="py"&&start!=="sql") start=store("dc-pg-tab")==="sql"?"sql":"py";
+show(start);
+window.addEventListener("hashchange",function(){ var h=location.hash.slice(1); if(h==="py"||h==="sql") show(h); });
+})();
+</script>
+</body>
+</html>
