@@ -2755,7 +2755,7 @@ mark{background:rgba(255,196,0,.5)}
       </div>
       <label for="dcgPS">Your PIN</label>
       <input id="dcgPS" name="ps" type="password" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="Pick a 4+ digit PIN the first time">
-      <small class="lp-s-note">Choose your own PIN the first time you log in — like a locker code. Use the <b>same</b> PIN every time after that, and don't tell classmates what it is. Only your teacher sees your details, and your boy/girl answer is optional.</small>
+      <small class="lp-s-note">First time: pick any 4+ digit PIN &mdash; like a locker code. This computer will remember your name and PIN after that, so you won't need to type them again here. Don't tell classmates your PIN.</small>
     </div>
     <div class="lp-t" hidden>
       <label for="dcgTN">Your name</label>
@@ -2898,6 +2898,7 @@ html.dc-opening #dcGate::before{content:'Opening DigiClass…';position:fixed;in
         fme.nm.value=me.name;
         if(me.cls && fme.cl){ fme.cl.value=me.cls; fillSubjects(); if(me.sub && fme.sb) fme.sb.value=me.sub; }
         if(me.g && fme.gd) fme.gd.value=me.g;
+        if(me.pin && fme.ps) fme.ps.value=me.pin;
         var nm=document.getElementById("dcgNotMe"); if(nm) nm.hidden=false;
       }
     }catch(e){}
@@ -2907,6 +2908,7 @@ html.dc-opening #dcGate::before{content:'Opening DigiClass…';position:fixed;in
     fme.nm.value=""; if(fme.cl) fme.cl.value="";
     if(fme.sb){ fme.sb.innerHTML='<option value="">Choose grade first…</option>'; fme.sb.disabled=true; }
     if(fme.gd) fme.gd.value="";
+    if(fme.ps) fme.ps.value="";
     var nm=document.getElementById("dcgNotMe"); if(nm) nm.hidden=true;
     fme.nm.focus();
   }
@@ -2954,7 +2956,7 @@ html.dc-opening #dcGate::before{content:'Opening DigiClass…';position:fixed;in
           if(jc.error==="pin"){ m.textContent="That PIN doesn't match "+name+". If this is really you, check your PIN with your teacher. If it isn't you, pick a different name/spelling."; btn.disabled=false; document.getElementById("dcgPS").focus(); return; }
           if(jc.error==="busy"){ m.textContent="Too many wrong PIN tries for this name. Wait 10 minutes and try again."; btn.disabled=false; return; }
           if(!jc.ok){ m.textContent="Couldn't check your PIN. Check your internet and try again."; btn.disabled=false; return; }
-          localStorage.setItem("dc-me",JSON.stringify({name:name,cls:cls,g:g,sub:sub,sid:jc.sid}));
+          localStorage.setItem("dc-me",JSON.stringify({name:name,cls:cls,g:g,sub:sub,sid:jc.sid,pin:pin}));
           localStorage.setItem(SK,JSON.stringify({kid:KID,k:j.key})); sessionStorage.setItem("dc-login","1");
         }catch(err){ m.textContent="Couldn't check your PIN. Check your internet and try again."; btn.disabled=false; return; }
         history.replaceState(null,"",location.pathname+location.search+"#/"); await open(j.key); return;
