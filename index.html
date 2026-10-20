@@ -2996,8 +2996,11 @@ body.present #dc-tmr .dcq-tm{font-size:3rem}
         <label>Boy / Girl (optional)<select name="gd"><option value="">Prefer not to say</option><option>Boy</option><option>Girl</option></select></label>
       </div>
       <label for="dcgPS">Your PIN</label>
-      <input id="dcgPS" name="ps" type="password" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="Pick a 4+ digit PIN the first time">
-      <small class="lp-s-note">First time: pick any 4+ digit PIN &mdash; like a locker code. This computer will remember your name and PIN after that, so you won't need to type them again here. Don't tell classmates your PIN.</small>
+      <div class="lp-pinwrap">
+        <input id="dcgPS" name="ps" type="password" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="Pick a 4+ digit PIN the first time">
+        <button type="button" class="lp-pineye" id="dcgPSEye" aria-label="Show PIN" aria-pressed="false">👁</button>
+      </div>
+      <small class="lp-s-note">First time: pick any 4+ digit PIN &mdash; like a locker code. This computer will remember your name and PIN after that, so you won't need to type them again here. Forgot it? Tap the eye icon to see the PIN saved on this device. Don't tell classmates your PIN.</small>
     </div>
     <div class="lp-t" hidden>
       <label for="dcgTN">Your name</label>
@@ -3070,7 +3073,7 @@ html.dc-opening #dcGate::before{content:'Opening DigiClass…';position:fixed;in
 .lp-card select:focus{outline:3px solid var(--or);outline-offset:1px;border-color:var(--tl)}
 @media (max-width:420px){.lp-3{grid-template-columns:1fr 1fr}.lp-3 label:nth-child(2){grid-column:1/-1;grid-row:1}}
 .lp-card input{width:100%;font:600 1.15rem system-ui,sans-serif;padding:13px;border:2px solid #9DB0C7;border-radius:12px;letter-spacing:.05em}
-.lp-card input::placeholder{color:#9AA9BA;font-weight:400;letter-spacing:0}
+.lp-card input::placeholder{color:#9AA9BA;font-weight:400;letter-spacing:0}.lp-pinwrap{position:relative}.lp-pinwrap input{padding-right:46px}.lp-pineye{position:absolute;right:5px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:0;border-radius:9px;background:transparent;font-size:1.2rem;line-height:1;cursor:pointer;color:var(--mut)}.lp-pineye:hover{background:#EEF3F8}.lp-pineye:focus-visible{outline:3px solid var(--or);outline-offset:1px}
 .lp-card input:focus{outline:3px solid var(--or);outline-offset:1px;border-color:var(--tl)}
 .lp-btn{display:inline-block;margin-top:12px;width:100%;padding:13px 16px;border:0;border-radius:12px;background:linear-gradient(90deg,var(--or),#FD7E14);color:#fff;font:700 1.1rem Poppins,system-ui,sans-serif;cursor:pointer;text-align:center;text-decoration:none;box-shadow:0 6px 0 #C2410C;transition:transform .1s,box-shadow .1s}
 .lp-btn:active{transform:translateY(4px);box-shadow:0 2px 0 #C2410C}
@@ -3156,6 +3159,16 @@ html.dc-opening #dcGate::before{content:'Opening DigiClass…';position:fixed;in
   }
   var clrBtn=document.getElementById("dcgClearMe");
   if(clrBtn) clrBtn.addEventListener("click",function(ev){ ev.preventDefault(); clearSaved(); });
+  var psEye=document.getElementById("dcgPSEye"), psInp=document.getElementById("dcgPS");
+  if(psEye && psInp){
+    psEye.addEventListener("click",function(){
+      var show=psInp.type==="password";
+      psInp.type=show?"text":"password";
+      psEye.textContent=show?"\uD83D\uDE48":"\uD83D\uDC41";
+      psEye.setAttribute("aria-pressed",show?"true":"false");
+      psEye.setAttribute("aria-label",show?"Hide PIN":"Show PIN");
+    });
+  }
   var GR_SUBJECTS={"11":["Computer Science","Informatics Practices"],"12":["Computer Science","Informatics Practices"]};
   function fillSubjects(){
     var cl=document.getElementById("dcgCL").value, sb=document.getElementById("dcgSB"), opts=GR_SUBJECTS[cl]||[];
