@@ -2847,30 +2847,11 @@ body.present #dc-tmr .dcq-tm{font-size:3rem}
   <button type="button" id="dc-tmr-rs" aria-label="Restart timer" title="Restart this stage">↺</button>
 </div>
 <script>
-/* Classroom add-on: always-visible stage timer with alarm, and Elaborate fit-to-screen. Reads the lesson's stage buttons, so it works with every lesson. */
+/* Classroom add-on: teacher-only floating stage timer with alarm, and Elaborate fit-to-screen. Reads the lesson's stage buttons, so it works with every lesson. Local to the teacher's own device — not shown to students, no server sync. */
 (function(){
   var box=document.getElementById("dc-tmr"), tEl=document.getElementById("dc-tmr-t"), nEl=document.getElementById("dc-tmr-name"),
       pp=document.getElementById("dc-tmr-pp"), add=document.getElementById("dc-tmr-add"), rs=document.getElementById("dc-tmr-rs");
   var key=null, total=0, endAt=0, left=0, running=false, rang=false, ctx=null, alarmTimer=null;
-  var EP="https://script.google.com/macros/s/AKfycbzpEpFmRbIbacu4-BgICaT3ZN8TIwOgti8pT76gmNmftQbSbJoErzM86G4ikxHgZEfFcg/exec";
-  var lastPoll=0, srvSuppress=false;
-  function teacherPin(){ try{ return JSON.parse(localStorage.getItem("dc-tpin")||"\"\"")||""; }catch(e){ return ""; } }
-  function applyServer(t){
-    if(!t) return;
-    key=(t.topic||"")+"|"+(t.name||""); nEl.textContent=t.name||nEl.textContent;
-    total=t.total||0; running=!!t.running;
-    left=running?((t.endAt-Date.now())/1000):(t.left||0); endAt=Date.now()+left*1000;
-    rang=left>0; stopAlarm(); paint();
-  }
-  function pushTimer(cmd,extra){
-    var pin=teacherPin(); if(!pin) return;
-    fetch(EP+"?action=timer&pin="+encodeURIComponent(pin)+"&cmd="+cmd+(extra||"")+"&t="+Date.now())
-      .then(function(r){return r.json();}).then(function(j){ if(j&&j.timer) applyServer(j.timer); }).catch(function(){});
-  }
-  function pollTimer(){
-    var now=Date.now(); if(now-lastPoll<4000) return; lastPoll=now;
-    fetch(EP+"?action=open&t="+now).then(function(r){return r.json();}).then(function(j){ if(j&&("timer" in j)) applyServer(j.timer); }).catch(function(){});
-  }
 
   function unlock(){ try{ if(!ctx){ var A=window.AudioContext||window.webkitAudioContext; if(A) ctx=new A(); } if(ctx&&ctx.state==="suspended") ctx.resume(); }catch(e){} }
   document.addEventListener("pointerdown",unlock,true); document.addEventListener("keydown",unlock,true);
@@ -2906,26 +2887,22 @@ body.present #dc-tmr .dcq-tm{font-size:3rem}
       if(left>61) delete box.dataset.w;
     }
   }
-  pp.addEventListener("click",function(){ stopAlarm(); if(running){ left=(endAt-Date.now())/1000; running=false; pushTimer("pause"); } else { endAt=Date.now()+left*1000; running=true; pushTimer("resume"); } paint(); });
-  add.addEventListener("click",function(){ stopAlarm(); left+=60; total+=60; if(left>0) rang=false; endAt=Date.now()+left*1000; paint(); pushTimer("add"); });
-  rs.addEventListener("click",function(){ var s=stageInfo(); var mins=s?s.mins:total/60; start(mins); pushTimer("restart","&mins="+mins+"&topic="+encodeURIComponent(location.hash)+"&name="+encodeURIComponent(nEl.textContent)); });
+  pp.addEventListener("click",function(){ stopAlarm(); if(running){ left=(endAt-Date.now())/1000; running=false; } else { endAt=Date.now()+left*1000; running=true; } paint(); });
+  add.addEventListener("click",function(){ stopAlarm(); left+=60; total+=60; if(left>0) rang=false; endAt=Date.now()+left*1000; paint(); });
+  rs.addEventListener("click",function(){ var s=stageInfo(); var mins=s?s.mins:total/60; start(mins); });
   box.addEventListener("click",function(e){ if(e.target===box||e.target.closest(".dcq-st")) stopAlarm(); });
 
   function tick(){
     var inLesson=!!document.querySelector(".tc-steps");
     document.body.classList.toggle("dc-lesson",inLesson);
     var teacher=!!document.querySelector("[data-tc-toggle],[data-tc-live]");
-    box.classList.toggle("dc-tmr-ro",!teacher);
-    var s=inLesson&&stageInfo();
-    if(teacher&&s&&s.key!==key){
-      key=s.key; nEl.textContent=s.name; start(s.mins);
-      pushTimer("start","&mins="+s.mins+"&topic="+encodeURIComponent(location.hash)+"&name="+encodeURIComponent(s.name));
-    }
+    box.style.display=teacher?"":"none";
+    var s=inLesson&&teacher&&stageInfo();
+    if(teacher&&s&&s.key!==key){ key=s.key; nEl.textContent=s.name; start(s.mins); }
     if(!inLesson&&key){ key=null; running=false; stopAlarm(); }
-    if(inLesson) pollTimer();
     document.body.classList.toggle("dc-fit",teacher&&!!document.querySelector(".elab-layout"));
     fitElab();
-    if(inLesson) paint();
+    if(inLesson&&teacher) paint();
   }
   var lastFit="";
   function fitElab(){
