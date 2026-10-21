@@ -2808,26 +2808,6 @@ body.dc-lesson #dc-ai-btn,body.dc-lesson #dc-lab-btn,body.dc-lesson .dc-badge{op
 body.dc-lesson #dc-ai-btn:hover,body.dc-lesson #dc-lab-btn:hover,body.dc-lesson .dc-badge:hover{opacity:1}
 body.dc-lesson .ak-fab{display:none!important}
 
-/* ---- Floating stage timer, bottom-right, always on screen ---- */
-#dc-tmr{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:9998;display:none;align-items:center;gap:10px;
-  padding:8px 10px 8px 14px;border-radius:18px;background:#0B2D5B;color:#fff;box-shadow:0 12px 30px -10px rgba(0,0,0,.55);
-  font:700 .9rem "Inter",system-ui,sans-serif;border:3px solid transparent}
-body.dc-lesson #dc-tmr{display:flex}
-#dc-tmr .dcq-st{display:flex;flex-direction:column;line-height:1.15;min-width:0}
-#dc-tmr .dcq-st small{color:#fff;font-size:.82rem;opacity:.8;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}
-#dc-tmr .dcq-tm{color:#fff;opacity:1;position:static;font:800 2rem/1 "JetBrains Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
-#dc-tmr button{width:40px;height:40px;border-radius:12px;border:0;background:rgba(255,255,255,.14);color:#fff;font:800 1rem "Inter",sans-serif;cursor:pointer}
-#dc-tmr button:hover{background:rgba(255,255,255,.26)}#dc-tmr.dc-tmr-ro button{display:none}#dc-tmr.dc-tmr-ro{padding:10px 16px}
-#dc-tmr.low{background:#C2410C}
-#dc-tmr.up{background:#C92A2A;border-color:#FFE066;animation:dcTmrFlash .8s steps(2) infinite}
-#dc-tmr.paused .tm{opacity:.55}
-@keyframes dcTmrFlash{50%{border-color:transparent;background:#7A1010}}
-body.present #dc-tmr{padding:12px 14px 12px 18px}
-body.present #dc-tmr .dcq-tm{font-size:3rem}
-@media (max-width:640px){#dc-tmr{right:10px;bottom:calc(76px + env(safe-area-inset-bottom,0px))}#dc-tmr .dcq-tm{font-size:1.6rem}#dc-tmr button{width:36px;height:36px}}
-@media (prefers-reduced-motion:reduce){#dc-tmr.up{animation:none}}
-@media print{#dc-tmr{display:none!important}}
-
 /* ---- Elaborate: number / explanation strip on TOP, activities get the full width ---- */
 .elab-layout{grid-template-columns:1fr!important}
 .elab-side{position:static!important;order:-1;flex-direction:row!important;flex-wrap:wrap;gap:12px!important}
@@ -2840,69 +2820,15 @@ body.present #dc-tmr .dcq-tm{font-size:3rem}
   body.dc-fit .elab-layout>:not(.elab-side) .tc-diff>*{break-inside:avoid;margin-bottom:10px}
 }
 </style>
-<div id="dc-tmr" role="timer" aria-live="off">
-  <div class="dcq-st"><small id="dc-tmr-name">Stage</small><span class="dcq-tm" id="dc-tmr-t">0:00</span></div>
-  <button type="button" id="dc-tmr-pp" aria-label="Pause timer" title="Pause / resume">❚❚</button>
-  <button type="button" id="dc-tmr-add" aria-label="Add one minute" title="+1 minute">+1</button>
-  <button type="button" id="dc-tmr-rs" aria-label="Restart timer" title="Restart this stage">↺</button>
-</div>
 <script>
-/* Classroom add-on: teacher-only floating stage timer with alarm, and Elaborate fit-to-screen. Reads the lesson's stage buttons, so it works with every lesson. Local to the teacher's own device — not shown to students, no server sync. */
+/* Classroom add-on: dims the floating AI/Lab buttons during a lesson, and auto-fits the Elaborate stage to one screen for the teacher. */
 (function(){
-  var box=document.getElementById("dc-tmr"), tEl=document.getElementById("dc-tmr-t"), nEl=document.getElementById("dc-tmr-name"),
-      pp=document.getElementById("dc-tmr-pp"), add=document.getElementById("dc-tmr-add"), rs=document.getElementById("dc-tmr-rs");
-  var key=null, total=0, endAt=0, left=0, running=false, rang=false, ctx=null, alarmTimer=null;
-
-  function unlock(){ try{ if(!ctx){ var A=window.AudioContext||window.webkitAudioContext; if(A) ctx=new A(); } if(ctx&&ctx.state==="suspended") ctx.resume(); }catch(e){} }
-  document.addEventListener("pointerdown",unlock,true); document.addEventListener("keydown",unlock,true);
-  function beep(f,at,len){ if(!ctx) return; var o=ctx.createOscillator(), g=ctx.createGain(); o.type="square"; o.frequency.value=f;
-    g.gain.setValueAtTime(0.0001,at); g.gain.exponentialRampToValueAtTime(0.35,at+0.02); g.gain.exponentialRampToValueAtTime(0.0001,at+len);
-    o.connect(g); g.connect(ctx.destination); o.start(at); o.stop(at+len+0.05); }
-  function ring(times){ unlock(); if(!ctx) return; var n=0; stopAlarm();
-    (function burst(){ var t=ctx.currentTime+0.05; for(var i=0;i<3;i++){ beep(1046,t+i*0.32,0.22); beep(1318,t+i*0.32+0.11,0.1); } if(++n<times) alarmTimer=setTimeout(burst,1600); })();
-    try{ if(navigator.vibrate) navigator.vibrate([300,150,300,150,300]); }catch(e){} }
-  function stopAlarm(){ if(alarmTimer){ clearTimeout(alarmTimer); alarmTimer=null; } }
-  function warn(){ unlock(); if(ctx) beep(880,ctx.currentTime+0.05,0.18); }
-
-  function fmt(s){ var neg=s<0; s=Math.abs(Math.round(s)); return (neg?"+":"")+Math.floor(s/60)+":"+("0"+s%60).slice(-2); }
-  function stageInfo(){
-    var b=document.querySelector(".tc-steps button.on"); if(!b) return null;
-    var sm=b.querySelector("small"), ic=b.querySelector("i");
-    var m=sm&&/(\d+(?:\.\d+)?)\s*min/i.exec(sm.textContent);
-    var name=b.textContent; if(sm) name=name.replace(sm.textContent,""); if(ic) name=name.replace(ic.textContent,"");
-    var idx=[].indexOf.call(b.parentNode.children,b);
-    return {key:idx+"|"+name.trim()+"|"+location.hash, name:((ic?ic.textContent+" ":"")+name.trim()), mins:m?parseFloat(m[1]):0};
-  }
-  function start(mins){ total=Math.round(mins*60); left=total; endAt=Date.now()+left*1000; running=true; rang=false; stopAlarm(); paint(); }
-  function paint(){
-    if(running) left=(endAt-Date.now())/1000;
-    tEl.textContent=fmt(left);
-    box.classList.toggle("paused",!running);
-    box.classList.toggle("up",left<=0&&total>0);
-    box.classList.toggle("low",left>0&&left<=60);
-    pp.textContent=running?"❚❚":"▶"; pp.setAttribute("aria-label",running?"Pause timer":"Resume timer");
-    if(running&&total>0){
-      if(!rang&&left<=0){ rang=true; ring(4); }
-      if(Math.ceil(left)===60&&!box.dataset.w){ box.dataset.w="1"; warn(); }
-      if(left>61) delete box.dataset.w;
-    }
-  }
-  pp.addEventListener("click",function(){ stopAlarm(); if(running){ left=(endAt-Date.now())/1000; running=false; } else { endAt=Date.now()+left*1000; running=true; } paint(); });
-  add.addEventListener("click",function(){ stopAlarm(); left+=60; total+=60; if(left>0) rang=false; endAt=Date.now()+left*1000; paint(); });
-  rs.addEventListener("click",function(){ var s=stageInfo(); var mins=s?s.mins:total/60; start(mins); });
-  box.addEventListener("click",function(e){ if(e.target===box||e.target.closest(".dcq-st")) stopAlarm(); });
-
   function tick(){
     var inLesson=!!document.querySelector(".tc-steps");
     document.body.classList.toggle("dc-lesson",inLesson);
     var teacher=!!document.querySelector("[data-tc-toggle],[data-tc-live]");
-    box.style.display=teacher?"":"none";
-    var s=inLesson&&teacher&&stageInfo();
-    if(teacher&&s&&s.key!==key){ key=s.key; nEl.textContent=s.name; start(s.mins); }
-    if(!inLesson&&key){ key=null; running=false; stopAlarm(); }
     document.body.classList.toggle("dc-fit",teacher&&!!document.querySelector(".elab-layout"));
     fitElab();
-    if(inLesson&&teacher) paint();
   }
   var lastFit="";
   function fitElab(){
