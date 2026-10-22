@@ -3004,11 +3004,8 @@ body.present #dc-tmr .dcq-tm{font-size:3rem}
       <label for="dcgN">Full name</label>
       <input id="dcgN" name="nm" maxlength="40" autocomplete="off" placeholder="e.g. Aisha Rahman">
       <small id="dcgNotMe" class="lp-notme" hidden>Not you? <a href="#" id="dcgClearMe">Clear this name and use your own</a></small>
-      <div class="lp-3">
-        <label>Grade<select name="cl" id="dcgCL"><option value="">Choose…</option><option value="11">Grade 11</option><option value="12">Grade 12</option></select></label>
-        <label>Subject<select name="sb" id="dcgSB" disabled><option value="">Choose grade first…</option></select></label>
-        <label>Boy / Girl (optional)<select name="gd"><option value="">Prefer not to say</option><option>Boy</option><option>Girl</option></select></label>
-      </div>
+      <label for="dcgSEC">My class</label>
+      <select name="sec" id="dcgSEC"><option value="">Choose…</option><option value="12Q-CS">Grade 12 · Q · Computer Science</option><option value="12N-IP">Grade 12 · N · Informatics Practices</option><option value="11N-IP">Grade 11 · N · Informatics Practices</option><option value="11P-CS">Grade 11 · P · Computer Science</option><option value="11B-IP">Grade 11 · B · Informatics Practices</option></select>
       <label for="dcgPS">Your PIN</label>
       <div class="lp-pinwrap">
         <input id="dcgPS" name="ps" type="password" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="Pick a 4+ digit PIN the first time">
@@ -3040,7 +3037,7 @@ body.present #dc-tmr .dcq-tm{font-size:3rem}
 <ol><li>Python revision tour <small>4 topics</small></li><li>Functions <small>7 topics</small></li><li>Exception handling <small>4 topics</small></li><li>File handling: text files <small>7 topics</small></li><li>File handling: binary files <small>6 topics</small></li><li>File handling: CSV files <small>3 topics</small></li><li>Data structure: stack <small>3 topics</small></li><li>Computer networks <small>7 topics</small></li><li>Network protocols and web services <small>2 topics</small></li><li>Database concepts and the relational model <small>3 topics</small></li><li>Structured Query Language (SQL) <small>7 topics</small></li><li>Interface of Python with MySQL <small>4 topics</small></li></ol></details><details class="lp-course ip" ><summary><span class="g">Class 11</span><b>Informatics Practices</b><small>9 chapters · 47 topics · tap to see chapters</small></summary>
 <ol><li>Introduction to computer system <small>6 topics</small></li><li>Python fundamentals <small>10 topics</small></li><li>Flow of control <small>4 topics</small></li><li>Lists <small>4 topics</small></li><li>Dictionaries <small>4 topics</small></li><li>Introduction to NumPy <small>5 topics</small></li><li>Database concepts <small>3 topics</small></li><li>Structured Query Language (SQL) <small>6 topics</small></li><li>Emerging trends <small>5 topics</small></li></ol></details><details class="lp-course ip" ><summary><span class="g">Class 12</span><b>Informatics Practices</b><small>8 chapters · 46 topics · tap to see chapters</small></summary>
 <ol><li>Pandas Series <small>6 topics</small></li><li>Pandas DataFrame <small>8 topics</small></li><li>Importing and exporting CSV <small>4 topics</small></li><li>Data visualization with Matplotlib <small>5 topics</small></li><li>SQL single-row functions <small>5 topics</small></li><li>Aggregate functions, grouping and joins <small>4 topics</small></li><li>Computer networks and the Internet <small>6 topics</small></li><li>Societal impacts <small>8 topics</small></li></ol></details></div></section>
-<section class="lp-sec"><h2>Start in 3 steps</h2><ol class="lp-steps"><li><b>Get the code</b><span>Your teacher gives it to you in class.</span></li><li><b>Log in</b><span>Class code, full name, grade, subject and boy/girl, at the top of this page.</span></li><li><b>Choose</b><span>DigiClass Learn to study on your own, or DigiClass Teach for your class lesson.</span></li></ol></section>
+<section class="lp-sec"><h2>Start in 3 steps</h2><ol class="lp-steps"><li><b>Get the code</b><span>Your teacher gives it to you in class.</span></li><li><b>Log in</b><span>Class code, full name and your class, at the top of this page.</span></li><li><b>Choose</b><span>DigiClass Learn to study on your own, or DigiClass Teach for your class lesson.</span></li></ol></section>
 </div>
 </main>
 <footer class="lp-foot"><p>© 2026 Janathul Firthouse. All rights reserved. The lessons, questions and design of DigiClass may not be copied, shared or reused without written permission.</p>
@@ -3155,8 +3152,7 @@ html.dc-opening #dcGate::before{content:'Opening DigiClass…';position:fixed;in
       var me=JSON.parse(localStorage.getItem("dc-me")||"null");
       if(me && me.name){
         fme.nm.value=me.name;
-        if(me.cls && fme.cl){ fme.cl.value=me.cls; fillSubjects(); if(me.sub && fme.sb) fme.sb.value=me.sub; }
-        if(me.g && fme.gd) fme.gd.value=me.g;
+        if(me.classId && fme.sec) fme.sec.value=me.classId;
         if(me.pin && fme.ps) fme.ps.value=me.pin;
         var nm=document.getElementById("dcgNotMe"); if(nm) nm.hidden=false;
       }
@@ -3164,9 +3160,7 @@ html.dc-opening #dcGate::before{content:'Opening DigiClass…';position:fixed;in
   }
   function clearSaved(){
     try{ localStorage.removeItem("dc-me"); }catch(e){}
-    fme.nm.value=""; if(fme.cl) fme.cl.value="";
-    if(fme.sb){ fme.sb.innerHTML='<option value="">Choose grade first…</option>'; fme.sb.disabled=true; }
-    if(fme.gd) fme.gd.value="";
+    fme.nm.value=""; if(fme.sec) fme.sec.value="";
     if(fme.ps) fme.ps.value="";
     var nm=document.getElementById("dcgNotMe"); if(nm) nm.hidden=true;
     fme.nm.focus();
@@ -3183,13 +3177,7 @@ html.dc-opening #dcGate::before{content:'Opening DigiClass…';position:fixed;in
       psEye.setAttribute("aria-label",show?"Hide PIN":"Show PIN");
     });
   }
-  var GR_SUBJECTS={"11":["Computer Science","Informatics Practices"],"12":["Computer Science","Informatics Practices"]};
-  function fillSubjects(){
-    var cl=document.getElementById("dcgCL").value, sb=document.getElementById("dcgSB"), opts=GR_SUBJECTS[cl]||[];
-    sb.innerHTML=opts.length?('<option value="">Choose…</option>'+opts.map(function(s){return "<option>"+s+"</option>";}).join("")):'<option value="">Choose grade first…</option>';
-    sb.disabled=!opts.length;
-  }
-  document.getElementById("dcgCL").addEventListener("change",fillSubjects);
+  var DG_SECTIONS={"12Q-CS":{cls:"12",sub:"Computer Science"},"12N-IP":{cls:"12",sub:"Informatics Practices"},"11N-IP":{cls:"11",sub:"Informatics Practices"},"11P-CS":{cls:"11",sub:"Computer Science"},"11B-IP":{cls:"11",sub:"Informatics Practices"}};
   document.getElementById("dcgF").addEventListener("click",function(e){
     var b=e.target.closest("[data-lmode]"); if(!b) return; var f=this, md=b.dataset.lmode; f.dataset.mode=md;
     f.querySelectorAll("[data-lmode]").forEach(function(x){ x.classList.toggle("on",x===b); x.setAttribute("aria-selected",x===b?"true":"false"); });
@@ -3199,7 +3187,7 @@ html.dc-opening #dcGate::before{content:'Opening DigiClass…';position:fixed;in
   });
   document.getElementById("dcgF").addEventListener("submit",async function(e){
     e.preventDefault(); var f=this, btn=f.querySelector("button[type=submit]"), m=document.getElementById("dcgM"), tmode=f.dataset.mode==="t", code=(tmode?document.getElementById("dcgP"):document.getElementById("dcgC")).value.trim();
-    var name=(f.nm.value||"").trim().replace(/\s+/g," ").slice(0,40), cls=f.cl.value, sub=f.sb.value, g=f.gd.value;
+    var name=(f.nm.value||"").trim().replace(/\s+/g," ").slice(0,40), secId=f.sec?f.sec.value:"", secInfo=DG_SECTIONS[secId]||{}, cls=secInfo.cls||"", sub=secInfo.sub||"", g="";
     if(!code){ m.textContent=tmode?"Type your teacher PIN.":"Type the class code."; return; }
     if(tmode) name="";
     btn.disabled=true; m.textContent="Checking…";
@@ -3216,7 +3204,7 @@ html.dc-opening #dcGate::before{content:'Opening DigiClass…';position:fixed;in
       }
       if(j.key){
         if(!/^[A-Za-zÀ-ɏ؀-ۿ][A-Za-zÀ-ɏ؀-ۿ'. -]{1,39}$/.test(name) || name.indexOf(" ")<0){ m.textContent="Please type your full name (first and last name)."; btn.disabled=false; f.nm.focus(); return; }
-        if(!cls||!sub){ m.textContent="Please choose your grade and subject."; btn.disabled=false; return; }
+        if(!secId||!cls||!sub){ m.textContent="Please choose your class."; btn.disabled=false; return; }
         var pin=(document.getElementById("dcgPS").value||"").trim();
         if(pin.length<4){ m.textContent="Pick a PIN of at least 4 digits — you'll use the same one every time."; btn.disabled=false; document.getElementById("dcgPS").focus(); return; }
         name=name.replace(/(^|\s)\S/g,function(c){return c.toUpperCase();});
@@ -3225,7 +3213,7 @@ html.dc-opening #dcGate::before{content:'Opening DigiClass…';position:fixed;in
           if(jc.error==="pin"){ m.textContent="That PIN doesn't match "+name+". If this is really you, check your PIN with your teacher. If it isn't you, pick a different name/spelling."; btn.disabled=false; document.getElementById("dcgPS").focus(); return; }
           if(jc.error==="busy"){ m.textContent="Too many wrong PIN tries for this name. Wait 10 minutes and try again."; btn.disabled=false; return; }
           if(!jc.ok){ m.textContent="Couldn't check your PIN. Check your internet and try again."; btn.disabled=false; return; }
-          localStorage.setItem("dc-me",JSON.stringify({name:name,cls:cls,g:g,sub:sub,sid:jc.sid,pin:pin}));
+          localStorage.setItem("dc-me",JSON.stringify({name:name,cls:cls,g:g,sub:sub,classId:secId,sid:jc.sid,pin:pin}));
           localStorage.setItem(SK,JSON.stringify({kid:KID,k:j.key})); sessionStorage.setItem("dc-login","1");
         }catch(err){ m.textContent="Couldn't check your PIN. Check your internet and try again."; btn.disabled=false; return; }
         history.replaceState(null,"",location.pathname+location.search+"#/"); await open(j.key); return;
