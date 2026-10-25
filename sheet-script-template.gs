@@ -1,0 +1,256 @@
+// =====================================================================
+// DigiClass – class sheet script (with DigiClass Teach lesson keys)
+// Paste ALL of this into: Google Sheet → Extensions → Apps Script
+// Then: Deploy → Manage deployments → ✏️ Edit → Version: New version → Deploy
+// (first time: Deploy → New deployment → Web app → Execute as: Me,
+//  Who has access: Anyone → Deploy → copy the Web app URL.)
+//
+// TEMPLATE NOTE: this is the committed, secrets-free version of the script.
+// The real deployed copy of this file lives only in the teacher's own Google
+// Sheet and has three placeholders below filled in with real values that
+// must NEVER be committed to this (public) repo:
+//   CLASS_CODE  - the real code students use to open DigiClass
+//   LEARN_KEY   - the AES key that unlocks the encrypted app bundle
+//   KEYS        - the real per-lesson [student key, teacher key] pairs
+// See README.md -> "What must never be committed" before touching this file.
+// =====================================================================
+
+// 1) CHANGE THIS to your own secret PIN (numbers or letters).
+//    You type it on DigiClass's teacher pages.
+const TEACHER_PIN = 'CHANGE-ME';
+
+// 2) CLASS CODE: give this to your students so they can open DigiClass.
+//    You can change it any time (then Deploy a new version). Students who
+//    already opened DigiClass on their device stay in.
+//    Use something hard to guess, at least 8 letters/numbers.
+const CLASS_CODE = /*__CODE__*/'';
+
+// Unlocks the DigiClass pages. Do not share this script.
+const LEARN_KEY = /*__LEARN__*/'';
+
+const ACTIVITY_HEADERS = ['Time', 'Name', 'Class', 'Event', 'Course', 'Chapter', 'Score', 'Total', 'Student ID', 'Boy/Girl', 'Subject', 'Answer'];
+const FEEDBACK_HEADERS = ['Time', 'Name', 'Class', 'Type', 'Reason', 'Message', 'Page', 'About', 'Student ID', 'Boy/Girl', 'Subject'];
+// Each student picks their own PIN the first time they log in. Only a salted hash is stored here —
+// never the PIN itself — so a classmate can't log in as someone else just by typing their name.
+const STUDENT_HEADERS = ['Name', 'Salt', 'Hash', 'Student ID', 'Class', 'Subject', 'Boy/Girl', 'First seen'];
+
+// DigiClass Teach: one pair of keys per lesson topic [student key, teacher key].
+// Students only receive a lesson's student key after you press "Start lesson".
+// Do not share this script or these keys.
+const KEYS = /*__KEYS__*/{};
+
+// Activity and Feedback are split into one sheet per subject (e.g. "Activity - Computer Science"),
+// so each subject's results are easy to open and analyse on their own. The Students roster stays as
+// one sheet, since the same student may take more than one subject and should only need one PIN.
+function subjSheet_(base, sub) {
+  const s = clean_(sub, 30).trim();
+  return s ? (base + ' - ' + s) : (base + ' - Other');
+}
+
+function sheet_(name, headers) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(name);
+  if (!sh) {
+    sh = ss.insertSheet(name);
+    sh.appendRow(headers);
+    sh.setFrozenRows(1);
+    sh.getRange(1, 1, 1, headers.length).setFontWeight('bold');
+  }
+  if (sh.getLastColumn() < headers.length) {
+    sh.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
+  }
+  return sh;
+}
+
+// Keeps text short and stops spreadsheet formulas from being injected.
+function clean_(v, n) {
+  return String(v == null ? '' : v).replace(/^[=+\-@]/, "'").slice(0, n || 300);
+}
+function num_(v) {
+  return (v === undefined || v === null || v === '') ? '' : Number(v);
+}
+function pinOk_(p) {
+  return String(p.pin || '').trim() === String(TEACHER_PIN).trim();
+}
+function norm_(s) {
+  return String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+function hashPin_(pin, salt) {
+  const raw = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, pin + ':' + salt, Utilities.Charset.UTF_8);
+  return raw.map(function (b) { const v = (b < 0 ? b + 256 : b).toString(16); return v.length < 2 ? '0' + v : v; }).join('');
+}
+function findStudentRow_(sh, nameNorm) {
+  if (sh.getLastRow() < 2) return -1;
+  const names = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues();
+  for (let i = 0; i < names.length; i++) { if (norm_(names[i][0]) === nameNorm) return i + 2; }
+  return -1;
+}
+
+// Lessons the teacher has started (stored in the script's own settings).
+function groups_() {
+  return Number(PropertiesService.getScriptProperties().getProperty('GROUPS') || 6);
+}
+function openTopics_() {
+  try { return JSON.parse(PropertiesService.getScriptProperties().getProperty('OPEN') || '[]'); } catch (e) { return []; }
+}
+function setOpenTopics_(list) {
+  PropertiesService.getScriptProperties().setProperty('OPEN', JSON.stringify(list));
+}
+
+// Students' devices send activity and feedback here.
+function doPost(e) {
+  try {
+    const d = JSON.parse(e.postData.contents);
+    // Each answer has a unique id; if the device sends it again (retry), it is saved only once.
+    const cache = CacheService.getScriptCache();
+    const uid = String(d.uid || '').slice(0, 40);
+    if (uid && cache.get('u_' + uid)) return out_({ ok: true, dup: true });
+    const lock = LockService.getScriptLock();
+    lock.waitLock(25000);
+    if (d.kind === 'feedback') {
+      sheet_(subjSheet_('Feedback', d.sub), FEEDBACK_HEADERS).appendRow([
+        new Date(), clean_(d.name, 40), clean_(d.cls, 5), clean_(d.type, 20), clean_(d.reason, 40),
+        clean_(d.message, 800), clean_(d.page, 100), clean_(d.ref, 60), clean_(d.sid, 12), clean_(d.g, 5), clean_(d.sub, 25)
+      ]);
+    } else {
+      sheet_(subjSheet_('Activity', d.sub), ACTIVITY_HEADERS).appendRow([
+        new Date(), clean_(d.name, 40), clean_(d.cls, 5), clean_(d.event, 10), clean_(d.course, 8),
+        clean_(d.chapter, 40), num_(d.score), num_(d.total), clean_(d.sid, 12), clean_(d.g, 5), clean_(d.sub, 25), clean_(d.ans, 10)
+      ]);
+    }
+    if (uid) cache.put('u_' + uid, '1', 21600);
+    lock.releaseLock();
+    return out_({ ok: true });
+  } catch (err) {
+    return out_({ error: String(err) });
+  }
+}
+
+function doGet(e) {
+  const p = e.parameter || {};
+  const a = p.action || '';
+  // Public: student keys of lessons the teacher has started.
+  if (a === 'open') {
+    const open = {};
+    openTopics_().forEach(function (t) { if (KEYS[t]) open[t] = KEYS[t][0]; });
+    let call = null; try { call = JSON.parse(PropertiesService.getScriptProperties().getProperty('CALL') || 'null'); } catch (err) {}
+    return out_({ ok: true, open: open, groups: groups_(), call: call });
+  }
+  // Public, only for a lesson that is live: the answers groups posted (group name + answer, no student names).
+  if (a === 'board') {
+    const t = String(p.topic || '');
+    if (openTopics_().indexOf(t) < 0) return out_({ error: 'locked' });
+    const posts = rows_('Feedback', ['ts', 'name', 'cls', 'type', 'reason', 'message', 'page', 'ref'], 4000)
+      .filter(function (r) { return r.type === 'group' && String(r.ref).indexOf(t + '#') === 0; })
+      .map(function (r) { return { ts: r.ts, g: r.reason, a: String(r.ref).split('#')[1], msg: r.message }; });
+    return out_({ ok: true, posts: posts, groups: groups_() });
+  }
+  // Class code (or the teacher PIN) unlocks the site. Too many wrong tries = 10-minute wait.
+  if (a === 'learn') {
+    const cache = CacheService.getScriptCache();
+    const fails = Number(cache.get('learnFails') || 0);
+    if (fails >= 30) return out_({ error: 'busy' });
+    const c = String(p.code || '').trim().toUpperCase();
+    if (c && pinOk_({ pin: p.code })) return out_({ ok: true, key: LEARN_KEY, teacher: true });
+    if (c && c === String(CLASS_CODE).trim().toUpperCase()) return out_({ ok: true, key: LEARN_KEY });
+    cache.put('learnFails', String(fails + 1), 600);
+    return out_({ error: 'code' });
+  }
+  // A student's own PIN: first time, it's set; every time after, it must match.
+  // Stops anyone who just knows the class code from logging in as a classmate by typing their name.
+  if (a === 'claim') {
+    const nameRaw = String(p.name || '').slice(0, 40), pin = String(p.pin || '').trim();
+    const nameNorm = norm_(nameRaw);
+    if (!nameNorm || pin.length < 4) return out_({ error: 'short' });
+    const cache = CacheService.getScriptCache();
+    const failKey = 'pf_' + nameNorm;
+    const fails = Number(cache.get(failKey) || 0);
+    if (fails >= 8) return out_({ error: 'busy' });
+    const lock = LockService.getScriptLock();
+    lock.waitLock(25000);
+    try {
+      const sh = sheet_('Students', STUDENT_HEADERS);
+      const row = findStudentRow_(sh, nameNorm);
+      if (row < 0) {
+        const salt = Utilities.getUuid();
+        const hash = hashPin_(pin, salt);
+        const sid = Utilities.getUuid().slice(0, 8);
+        sh.appendRow([nameRaw, salt, hash, sid, clean_(p.cls, 5), clean_(p.sub, 25), clean_(p.g, 5), new Date()]);
+        lock.releaseLock();
+        return out_({ ok: true, sid: sid, created: true });
+      }
+      const vals = sh.getRange(row, 1, 1, STUDENT_HEADERS.length).getValues()[0];
+      const salt = vals[1], hash = vals[2], sid = vals[3];
+      if (hashPin_(pin, salt) === hash) {
+        cache.remove(failKey);
+        lock.releaseLock();
+        return out_({ ok: true, sid: sid, created: false });
+      }
+      cache.put(failKey, String(fails + 1), 600);
+      lock.releaseLock();
+      return out_({ error: 'pin' });
+    } catch (err) {
+      try { lock.releaseLock(); } catch (e2) {}
+      return out_({ error: String(err) });
+    }
+  }
+  if (a === '') return out_({ ok: true, app: 'DigiClass' });
+  if (!pinOk_(p)) return out_({ error: 'pin' });
+  if (a === 'keys') return out_({ ok: true, keys: KEYS, open: openTopics_() });
+  if (a === 'unlock' || a === 'lock') {
+    const t = String(p.topic || '');
+    if (!KEYS[t]) return out_({ error: 'unknown lesson' });
+    let list = openTopics_().filter(function (x) { return x !== t; });
+    if (a === 'unlock') list.push(t);
+    setOpenTopics_(list);
+    if (p.g) PropertiesService.getScriptProperties().setProperty('GROUPS', String(Math.max(2, Math.min(9, Number(p.g) || 6))));
+    return out_({ ok: true, open: list });
+  }
+  // Teacher's randomiser: "Number 3s, present!" shown on students' screens.
+  if (a === 'call') {
+    const c = { topic: String(p.topic || '').slice(0, 60), num: Number(p.num) || 0, g: String(p.g || '').slice(0, 30), ts: Date.now() };
+    PropertiesService.getScriptProperties().setProperty('CALL', JSON.stringify(c));
+    return out_({ ok: true, call: c });
+  }
+  if (a === 'groups') { PropertiesService.getScriptProperties().setProperty('GROUPS', String(Math.max(2, Math.min(9, Number(p.g) || 6)))); return out_({ ok: true, groups: groups_() }); }
+  if (a === 'lockall') { setOpenTopics_([]); return out_({ ok: true, open: [] }); }
+  if (a === 'summary') {
+    // With &topic=… only that lesson's rows (from the most recent 4000) are sent, so live results stay fast all year.
+    const t = String(p.topic || '');
+    const act = rows_('Activity', ['ts', 'name', 'cls', 'event', 'course', 'chapter', 'score', 'total', 'sid', 'g', 'sub', 'ans'], t ? 4000 : 0);
+    const fb = rows_('Feedback', ['ts', 'name', 'cls', 'type', 'reason', 'message', 'page', 'ref', 'sid', 'g', 'sub'], t ? 4000 : 0);
+    if (!t) return out_({ activity: act, feedback: fb });
+    return out_({
+      activity: act.filter(function (r) { return String(r.chapter) === t; }),
+      feedback: fb.filter(function (f) { const r = String(f.ref); return r === t || r.indexOf(t + '#') === 0; })
+    });
+  }
+  return out_({ error: 'unknown action' });
+}
+
+// Reads and merges every sheet for this base name (the unsplit sheet, if any still exists from
+// before subjects were split out, plus every "Base - Subject" sheet), sorted back into time order.
+function rows_(base, keys, lastN) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheets = ss.getSheets().filter(function (sh) {
+    const n = sh.getName();
+    return n === base || n.indexOf(base + ' - ') === 0;
+  });
+  let out = [];
+  sheets.forEach(function (sh) {
+    if (sh.getLastRow() < 2) return;
+    const cols = Math.min(keys.length, sh.getLastColumn());
+    const last = sh.getLastRow(), first = lastN ? Math.max(2, last - lastN + 1) : 2;
+    sh.getRange(first, 1, last - first + 1, cols).getValues().forEach(function (r) {
+      const o = {};
+      keys.forEach(function (k, i) { o[k] = r[i] instanceof Date ? r[i].toISOString() : r[i]; });
+      out.push(o);
+    });
+  });
+  out.sort(function (a, b) { return String(a.ts || '').localeCompare(String(b.ts || '')); });
+  return lastN ? out.slice(-lastN) : out;
+}
+
+function out_(o) {
+  return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+}

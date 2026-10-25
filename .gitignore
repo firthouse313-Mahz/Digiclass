@@ -1,0 +1,8 @@
+# Secrets that must never be committed to this public repo.
+# (They normally live outside this folder entirely, at /home/claude/dc/,
+# but this is a safety net in case a copy ever ends up in here.)
+learn_key.json
+teach_keys.json
+*.secrets.json
+sheet-script-filled.gs
+sheet_script.gs
