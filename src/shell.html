@@ -2415,7 +2415,9 @@ html[data-theme="light"] #topbar .search::placeholder{color:#B7C7DA}
 html[data-theme="dark"] .tb-me{color:var(--ink);background:var(--surface);border-color:var(--line)}
 .tbm-av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:.9rem;color:#fff;background:linear-gradient(135deg,var(--og2),var(--og))}
 .tb-me b{max-width:110px;overflow:hidden;text-overflow:ellipsis}
-@media (max-width:430px){.tb-me{height:34px;gap:5px;padding:0 9px 0 3px;font-size:.84rem}.tbm-av{width:27px;height:27px;font-size:.8rem}.tb-me b{max-width:64px}#topbar .tb-right{gap:4px!important}#topbar .tb-right .iconbtn{width:36px!important;height:36px!important}#topbar .brand{gap:6px!important}#topbar .wm{font-size:1.18rem!important}}
+.tb-me-out{width:38px;height:38px;border-radius:999px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.12);color:#fff;display:grid;place-items:center;font-size:1rem;flex:0 0 auto}
+html[data-theme="dark"] .tb-me-out{color:var(--ink);background:var(--surface);border-color:var(--line)}
+@media (max-width:430px){.tb-me{height:34px;gap:5px;padding:0 9px 0 3px;font-size:.84rem}.tbm-av{width:27px;height:27px;font-size:.8rem}.tb-me b{max-width:64px}#topbar .tb-right{gap:4px!important}#topbar .tb-right .iconbtn{width:36px!important;height:36px!important}#topbar .tb-me-out{width:34px!important;height:34px!important}#topbar .brand{gap:6px!important}#topbar .wm{font-size:1.18rem!important}}
 @media (max-width:359px){.tb-me b{display:none}}
 /* ---------- headings: same Poppins as the front page ---------- */
 #content h1,#content h2,#content h3,#content .sec-title{font-family:"Nunito Sans",system-ui,sans-serif!important;letter-spacing:-.01em}
@@ -2717,6 +2719,7 @@ html[data-theme="light"] #topbar .search{background:var(--surface2)!important;bo
 .mainnav button[aria-current="true"]{color:var(--brand)}
 .tb-me{color:var(--ink)!important;background:var(--surface2)!important;border:1px solid var(--line2)!important}
 .tbm-av{background:linear-gradient(135deg,var(--xp),var(--cs))!important}
+.tb-me-out{color:var(--ink)!important;background:var(--surface2)!important;border:1px solid var(--line2)!important}
 
 /* ---------- buttons: bold vivid gradient pills, playful lift on hover ---------- */
 .btn{border-radius:16px;font-weight:700}

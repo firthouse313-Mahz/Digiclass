@@ -2100,7 +2100,7 @@ const DCP = (()=>{
     const qLabel=q=>{ const [c,k]=q.split(":"), ch=CHBY[c], i=+k.slice(1); if(k[0]==="z"){ const x=quizOf(c); return x&&x[i]?x[i][0]:q; } return `${ch.title} · ${k[0]==="p"?"practice":"solved"} question ${i+1}`; };
     const tbl=(h,rows)=>rows.length?`<div class="tbl"><table><thead><tr>${h.map(x=>`<th>${x}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table></div>`:`<p class="meta">No data on this device yet.</p>`;
     return `<div class="wrap teacher-v">
-      <div class="hub-head th-head"><h1>👩‍🏫 ${store.get("dc-tname","")?`Welcome, ${esc(store.get("dc-tname",""))}`:"Teacher home"}</h1><p class="sec-sub">Everything you need, in three buttons.</p></div>
+      <div class="hub-head th-head"><h1>👩‍🏫 ${store.get("dc-tname","")?`Welcome, ${esc(store.get("dc-tname",""))}`:"Teacher home"}</h1><p class="sec-sub">Everything you need, in three buttons.</p>${sessionStorage.getItem("dc-tmode")==="1"?`<button class="btn" data-tc-out style="margin-top:10px">🚪 Sign out of teacher mode</button>`:""}</div>
       <div class="th-go">
         <a class="th-b a" href="#/teach" data-th-teach><i>▶</i><b>Teach a lesson</b><span>Pick a topic, press Start, and teach it on the board.</span></a>
         <a class="th-b b" href="#/teacher" data-th-res><i>📊</i><b>See results</b><span>Who joined, who needs help, which topics to re-teach.</span></a>
@@ -2498,7 +2498,7 @@ const CLS = (()=>{
     if(d){ const id=d.dataset.done; setTimeout(()=>{ const ch=CHBY[id]; if(ch) send(done.has(id)?"done":"undone",{course:ch.course.id, chapter:id}); },0); }
     const ps=e.target.closest("[data-psubmit]");
     if(ps){ const cid=ps.dataset.psubmit; setTimeout(()=>{ const st=pState(cid); if(st.sub){ const sc=paperScore(cid), tot=flatQs(paperOf(cid)).reduce((n,q)=>n+q.m,0); once(`paper:${cid}:${st.start}`, ()=>send("paper",{course:cid, score:sc.got, total:tot})); } },50); }
-    if(e.target.closest("[data-logout]")){ try{ localStorage.removeItem("dc-lk"); sessionStorage.removeItem("dc-tmode"); }catch(err){} location.href=location.pathname; return; }
+    if(e.target.closest("[data-logout]")){ try{ localStorage.removeItem("dc-me"); sessionStorage.removeItem("dc-tmode"); }catch(err){} location.href=location.pathname; return; }
     if(e.target.closest("[data-leave]")){ if(confirm("Change your name or class on this device?")){ store.set(K.me,null); rerender(); } }
     if(e.target.closest("[data-trefresh]")){ loadTD(store.get(K.pin,""), err=>{ if(err) toast(err); else { toast("Updated ✓"); rerender(); } }); }
     if(e.target.closest("[data-tcsv]")) toCSV();
@@ -3952,8 +3952,14 @@ render(parseHash());
     const w = who(), old = right.querySelector(".tb-me");
     if(!w){ if(old) old.remove(); return; }
     const first = String(w.n).trim().split(/\s+/)[0];
+    const oldOut = right.querySelector(".tb-me-out");
     const html = `<a class="tb-me" href="${w.t ? "#/teacher" : "#/me"}" title="${esc(w.n)}"><span class="tbm-av" aria-hidden="true">${w.t ? "👩‍🏫" : esc(first.slice(0,1).toUpperCase())}</span><b>${esc(first)}</b></a>`;
     if(old) old.outerHTML = html; else right.insertAdjacentHTML("afterbegin", html);
+    if(oldOut) oldOut.remove();
+    // Teacher mode has no natural end of session (a classroom device can sit
+    // signed in for days), so this sign-out control stays visible next to the
+    // pill on every single page, not just inside DigiClass Teach.
+    if(w.t){ const me2=right.querySelector(".tb-me"); if(me2) me2.insertAdjacentHTML("afterend", `<button class="iconbtn tb-me-out" data-tc-out title="Sign out of teacher mode" aria-label="Sign out of teacher mode">🚪</button>`); }
   }
   let io = null;
   function reveal(){
