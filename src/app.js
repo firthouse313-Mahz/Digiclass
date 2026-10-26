@@ -3948,8 +3948,16 @@ render(parseHash());
     }catch(e){ return null; }
   }
   function pill(){
-    const right = document.querySelector("#topbar .tb-right"); if(!right) return;
-    const w = who(), old = right.querySelector(".tb-me");
+    const float = document.getElementById("teachOutFloat");
+    const right = document.querySelector("#topbar .tb-right");
+    const w = who();
+    // Floating sign-out button: lives outside the top bar entirely, so it
+    // still shows in "Present" mode (which hides the whole top bar for a
+    // clean classroom display) and is the one guaranteed way out of teacher
+    // mode no matter which page or display mode the device is sitting on.
+    if(float) float.hidden = !(w && w.t);
+    if(!right) return;
+    const old = right.querySelector(".tb-me");
     if(!w){ if(old) old.remove(); return; }
     const first = String(w.n).trim().split(/\s+/)[0];
     const oldOut = right.querySelector(".tb-me-out");

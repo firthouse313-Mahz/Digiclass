@@ -2417,6 +2417,13 @@ html[data-theme="dark"] .tb-me{color:var(--ink);background:var(--surface);border
 .tb-me b{max-width:110px;overflow:hidden;text-overflow:ellipsis}
 .tb-me-out{width:38px;height:38px;border-radius:999px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.12);color:#fff;display:grid;place-items:center;font-size:1rem;flex:0 0 auto}
 html[data-theme="dark"] .tb-me-out{color:var(--ink);background:var(--surface);border-color:var(--line)}
+/* Always-reachable teacher sign-out: a fixed button outside the top bar,
+   so it still shows even in "Present" mode, which hides the whole top bar
+   for a clean classroom display. Toggled by JS (hidden unless teacher mode
+   is on), never covered by the present-mode CSS rule. */
+.teach-out-float{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:14px;z-index:9999;display:flex;align-items:center;gap:6px;border:0;border-radius:999px;padding:10px 16px;font:700 .92rem "Inter",system-ui,sans-serif;color:#fff;cursor:pointer;background:linear-gradient(135deg,#D64545,#B52C2C);box-shadow:0 10px 26px -8px rgba(180,40,40,.6)}
+.teach-out-float[hidden]{display:none}
+@media (max-width:430px){.teach-out-float{padding:8px 12px;font-size:.84rem;top:calc(8px + env(safe-area-inset-top,0px));right:10px}}
 @media (max-width:430px){.tb-me{height:34px;gap:5px;padding:0 9px 0 3px;font-size:.84rem}.tbm-av{width:27px;height:27px;font-size:.8rem}.tb-me b{max-width:64px}#topbar .tb-right{gap:4px!important}#topbar .tb-right .iconbtn{width:36px!important;height:36px!important}#topbar .tb-me-out{width:34px!important;height:34px!important}#topbar .brand{gap:6px!important}#topbar .wm{font-size:1.18rem!important}}
 @media (max-width:359px){.tb-me b{display:none}}
 /* ---------- headings: same Poppins as the front page ---------- */
@@ -3046,6 +3053,7 @@ body.present #dc-tmr .dcq-tm{font-size:3rem}
     </div>
   </div>
 </header>
+<button id="teachOutFloat" class="teach-out-float" data-tc-out hidden title="Sign out of teacher mode" aria-label="Sign out of teacher mode">🚪 Sign out</button>
 <nav class="coursebar" id="rail" aria-label="Course" hidden></nav>
 <main id="content" tabindex="-1"></main>
 <nav class="tabbar" id="tabbar" aria-label="Quick navigation"></nav>
