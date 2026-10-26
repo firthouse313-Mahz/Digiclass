@@ -3467,7 +3467,9 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
       <div class="ls-opts abcd-grid">${x.o.map((o,k)=>`<button data-tc-ans="${k}" ${done?"disabled":""} class="abcd c${k} ${done?(k===x.a?"right":k===st?"wrong":"dim"):""}"><b aria-hidden="true">${"ABCD"[k]}</b><span>${inline(o)}</span></button>`).join("")}</div>
       <p class="ls-fb">${done?`${st===x.a?"✅ <b>Correct!</b>":"💡 <b>Not quite.</b>"} ${inline(x.why)}`:""}</p></div>`;
   }
-  const qa = (x,lab) => `<div class="lp-q"><span class="lp-lv">${lab}</span><div class="lp-qb">${md(x.q)}<details><summary>Show answer</summary><div class="page">${md(x.a)}</div></details></div></div>`;
+  function qaNote(id){ return id?((store.get("dc-qa-notes",{})||{})[id]||""):""; }
+  function qaNoteSet(id,v){ if(!id) return; const m=store.get("dc-qa-notes",{})||{}; if(v) m[id]=v; else delete m[id]; store.set("dc-qa-notes",m); }
+  const qa = (x,lab,id) => `<div class="lp-q"><span class="lp-lv">${lab}</span><div class="lp-qb">${md(x.q)}${id&&!isT()?`<label class="qa-note-wrap">Your answer<textarea class="qa-note" data-qa-id="${esc(id)}" rows="3" placeholder="Type your answer here, then check below">${esc(qaNote(id))}</textarea></label>`:""}<details><summary>Show answer</summary><div class="page">${md(x.a)}</div></details></div></div>`;
   const SC_OPEN={starter:1,learn:1,plenary:1,exit:1};
   function scBar(S, stage){
     if(!S||!(S.objective||S.success)) return "";
@@ -3678,7 +3680,7 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
         if(L2.code&&L2.code.length&&typeof RUNNER!=="undefined"){ const t=L2.code[0], id=`${topic}:x0`; RUNNER.register(id,t); code=`<div class="explore-code"><b>💻 Try it: predict first, then run</b>${RUNNER.box(t,id)}</div>`; }
         return `<div class="tc-stage"><h3>🔍 Explore <small>Investigate with your partner before the explanation.</small></h3>
         <p class="act-intro">Work with your partner. Try it, make mistakes, notice patterns. <b>Write what you find in your notebook.</b> We'll check it together in Explain.</p>
-        ${(S.practice||[])[0]?`<div class="explore-q">${qa(S.practice[0],"🔍 Investigate")}</div>`:""}
+        ${(S.practice||[])[0]?`<div class="explore-q">${qa(S.practice[0],"🔍 Investigate",`${topic}:explore`)}</div>`:""}
         ${code}
         ${tnote("While they explore",(T.discuss?`<p><b>Ask pairs:</b> ${inline(T.discuss)}</p>`:"")+`<p>Walk around and listen. Pick two pairs with different ideas to share at the start of Explain. Students open “Show answer” only after they have tried.</p>`+(S.coop?`<details><summary>Optional extra pair task</summary>${md(S.coop.task)}</details>`:""))}</div>`; }
       case "learn": return `<div class="tc-stage"><h3>📖 Explain <small>Now let's make sense of what you found.</small></h3>
@@ -3696,9 +3698,9 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
         ${isT()?groupSetup():groupPick(my)}
         ${acts.length?`<div class="act-prog" aria-label="Progression">${acts.map((a,n)=>{ const L=LV[a.level]||["","",""]; return `<span class="ap ${start===n?"here":""}">${L[0]} ${L[1]}</span>`; }).join('<i aria-hidden="true">→</i>')}</div>
           <div class="cboard">${acts.map((a,n)=>actCard(topic,a,n,my,start)).join("")}</div>`:""}
-        ${(()=>{ const ex=allActs(P).slice((S.acts||[]).length); return ex.length?`<h4 class="ex-h">🧠 HOTS and 🏆 Bonus challenge <small>for groups who finish the board: post your answers here too</small></h4><div class="act-prog" aria-label="Progression">${ex.map(a=>{ const L=LV[a.level]||["","",""]; return `<span class="ap">${L[0]} ${L[1]}</span>`; }).join('<i aria-hidden="true">→</i>')}</div><div class="cboard">${ex.map((a,k)=>actCard(topic,a,(S.acts||[]).length+k,my,null)).join("")}</div>`:""; })()}
         ${S.diff?`<details class="act-more"><summary>More differentiation ideas</summary><div class="tc-diff"><div class="d s"><b>🟢 Support</b>${md(S.diff.support)}</div><div class="d c"><b>🟡 Core</b>${md(S.diff.core)}</div><div class="d x"><b>🔴 Stretch</b>${md(S.diff.stretch)}</div></div></details>`:""}
-        ${(S.practice||[]).length>1?`<details class="act-more"><summary>Extra practice question</summary>${S.practice.slice(1).map(x=>qa(x,"🟡 Core")).join("")}</details>`:""}`;
+        ${(()=>{ const ex=allActs(P).slice((S.acts||[]).length); return ex.length?`<h4 class="ex-h">🧠 HOTS and 🏆 Bonus challenge <small>for groups who finish the board: post your answers here too</small></h4><div class="act-prog" aria-label="Progression">${ex.map(a=>{ const L=LV[a.level]||["","",""]; return `<span class="ap">${L[0]} ${L[1]}</span>`; }).join('<i aria-hidden="true">→</i>')}</div><div class="cboard">${ex.map((a,k)=>actCard(topic,a,(S.acts||[]).length+k,my,null)).join("")}</div>`:""; })()}
+        ${(S.practice||[]).length>1?`<details class="act-more"><summary>Extra practice question</summary>${S.practice.slice(1).map((x,xi)=>qa(x,"🟡 Core",`${topic}:xp${xi}`)).join("")}</details>`:""}`;
         const side=`<details class="elab-side-wrap"><summary>🎲 Numbered Heads Together & notes (tap to open)</summary>${nhtCard()}
         ${tnote("Numbers, before they start",`<p>Give each student a number 1–4 now. Nobody knows who will be called later, so every member has to be ready to explain the group's answer. Calling a number happens next, in the Evaluate tab.</p><p><b>Differentiation:</b> groups that struggled at the mid-plenary start at 🟢 Support, most groups start at 🟡 Core, confident groups go to 🔴 Stretch, and groups that finish early move up to 🟣 Challenge. Students see a “Start here” marker based on their own mid-plenary score.</p>`)}</details>`;
         return `<div class="tc-stage"><h3>👥 Elaborate <small>Use what you learned in your group.</small></h3>
@@ -3914,6 +3916,12 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
   document.addEventListener("change",async e=>{
     const gs=e.target.closest("[data-gset]"); if(!gs) return;
     const pin=store.get(PINK,""); try{ const j=await api(`action=groups&g=${gs.value}&pin=${encodeURIComponent(pin)}`); if(j.error) throw new Error(j.error); NG=+j.groups||+gs.value; toast(`Groups set to ${NG}`); fill(); }catch(err){ toast("Couldn't save: "+err.message); }
+  });
+  // a student's own typed working for a self-check question is kept on this device,
+  // so it's still there after switching stages or reloading
+  let qaT=null; document.addEventListener("input",e=>{
+    const ta=e.target.closest&&e.target.closest(".qa-note"); if(!ta) return;
+    clearTimeout(qaT); qaT=setTimeout(()=>qaNoteSet(ta.dataset.qaId,ta.value),400);
   });
   const _after=DCP.after;
   DCP.after=function(v){ _after(v); if(v.name==="teach"){ fill(); } else { clearInterval(tT); document.body.classList.remove("present"); } };
