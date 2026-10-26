@@ -3320,9 +3320,7 @@ html.dc-opening #dcGate::before{content:'Opening DigiClass…';position:fixed;in
     btn.disabled=false;
   });
   if(!window.crypto||!crypto.subtle||typeof DecompressionStream==="undefined"){ document.getElementById("dcgWait").textContent="Please update your browser (Chrome, Edge or Safari) to use DigiClass."; return; }
-  var sk0=saved();
-  if(sk0){ open(sk0).catch(function(){ fillFromSaved(); ask(); }); }
-  else { fillFromSaved(); ask(); }
+  fillFromSaved(); ask();
 })();
 </script>
 
