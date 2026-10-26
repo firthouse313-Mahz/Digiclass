@@ -3490,7 +3490,9 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
     const st=store.get("dc-lsn",{})[`${topic}:hd:${where}`];
     return `<div class="hd" data-hd-where="${where}" data-topic="${topic}"><b>${label||"How did you do?"}</b><div class="hd-b" role="group" aria-label="${label||"How did you do?"}">${HD.map(([v,ic,t])=>`<button data-hd="${v}" class="${String(st)===v?"on":""}">${ic} ${t}</button>`).join("")}</div></div>`;
   }
-  const midScore = topic => { const m=store.get("dc-lsn",{}), S=cache[topic]&&cache[topic].s; if(!S) return null; let n=0, a=0; MIDK.forEach(k=>{ const q=qOf(topic,k); if(q&&m[`${topic}:${k}`]!=null){ a++; if(m[`${topic}:${k}`]===q.a) n++; } }); return a?n:null; };
+  // The fraction correct (0 to 1), not the raw count - a lesson might have anywhere from
+  // 1 to 4 mid-plenary questions, so a raw count can't be compared against a fixed threshold.
+  const midScore = topic => { const m=store.get("dc-lsn",{}), S=cache[topic]&&cache[topic].s; if(!S) return null; let n=0, a=0; MIDK.forEach(k=>{ const q=qOf(topic,k); if(q&&m[`${topic}:${k}`]!=null){ a++; if(m[`${topic}:${k}`]===q.a) n++; } }); return a?n/a:null; };
   function aflPanel(topic, T){
     const pick=store.get("dc-afl",{})[topic] || (T.afl&&AFL.find(x=>x[0].toLowerCase().startsWith(String(T.afl.tool).toLowerCase().slice(0,6)))||AFL[0])[0];
     const cur=AFL.find(x=>x[0]===pick)||AFL[0];
@@ -3693,7 +3695,7 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
         <div class="afl-fixed"><span class="afl-chips" aria-hidden="true"><i class="c0">A</i><i class="c1">B</i><i class="c2">C</i><i class="c3">D</i></span><div><b>AfL tool: ABCD cards</b><small>${isT()?"Students tap A, B, C or D for each question. Press 📊 Live results to see how many chose each letter and who needs help. Discuss the most common wrong answer before the activity.":"Tap the card with your answer for each question. Your teacher sees the class results live."}</small></div></div>
         ${Q.map((q,n)=>`<div class="mid-q"><span class="mid-n">Question ${n+1} of ${Q.length}${n===2?" · hinge question":""}</span>${mcq(MIDK[n],topic,q)}</div>`).join("")}
         ${!isT()?hd("mid",topic,"How did you do on these questions?"):""}</div>`; }
-      case "activity": { const acts=S.acts||[], my=myGroup(), ms=midScore(topic), start=isT()||ms==null?null:ms<=1?0:ms===2?1:2;
+      case "activity": { const acts=S.acts||[], my=myGroup(), ms=midScore(topic), start=isT()||ms==null?null:ms<0.5?0:ms<1?1:2;
         const main=`<details class="act-intro-wrap" open><summary>📋 Instructions <small>(tap to hide once everyone's seen it)</small></summary><p class="act-intro">${S.practical?`Sit in your mixed group. <b>Write the program together</b> (in the box on the card, or in IDLE / MySQL), press <b>✓ Check</b>, then the <b>Reporter posts the group's code</b> and the group marks it.`:`Sit in your mixed group. <b>Solve it on paper together</b>, agree on one answer, then the <b>Reporter types the group's answer</b> here and the group marks it.`}</p></details>
         ${isT()?groupSetup():groupPick(my)}
         ${acts.length?`<div class="act-prog" aria-label="Progression">${acts.map((a,n)=>{ const L=LV[a.level]||["","",""]; return `<span class="ap ${start===n?"here":""}">${L[0]} ${L[1]}</span>`; }).join('<i aria-hidden="true">→</i>')}</div>
