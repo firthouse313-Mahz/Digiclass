@@ -2470,7 +2470,7 @@ const CLS = (()=>{
     }).catch(()=>cb("Couldn't reach the class sheet. Check the Web app URL and that access is set to 'Anyone'."));
   }
   function toCSV(){
-    const rows=[["time","name","grade","subject","class","event","course","chapter","score","total"]].concat((TD.activity||[]).map(r=>[r.ts,r.name,r.cls,r.sub||"",r.classId||"",r.event,r.course||"",r.chapter||"",r.score??"",r.total??""]));
+    const rows=[["time","name","student_id","grade","subject","class","event","course","chapter","score","total"]].concat((TD.activity||[]).map(r=>[r.ts,r.name,r.sid||"",r.cls,r.sub||"",r.classId||"",r.event,r.course||"",r.chapter||"",r.score??"",r.total??""]));
     const csv=rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(",")).join("\n");
     const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download="digiclass-activity.csv"; a.click();
   }
@@ -2503,9 +2503,9 @@ const CLS = (()=>{
     if(e.target.closest("[data-trefresh]")){ loadTD(store.get(K.pin,""), err=>{ if(err) toast(err); else { toast("Updated ✓"); rerender(); } }); }
     if(e.target.closest("[data-tcsv]")) toCSV();
     const dcb=e.target.closest("[data-tdcsv]");
-    if(dcb&&TD&&TD._day){ const H=["Time","Name","Class","Subject","Section","Event","Lesson/topic","Score","Total","Answer"];
+    if(dcb&&TD&&TD._day){ const H=["Time","Name","Student ID","Class","Subject","Section","Event","Lesson/topic","Score","Total","Answer"];
       const q=v=>`"${String(v==null?"":v).replace(/"/g,'""')}"`;
-      const csv=[H.join(",")].concat(TD._day.rows.map(r=>[r.ts,r.name,r.cls,r.sub,r.classId,r.event,r.chapter,r.score,r.total,r.ans].map(q).join(","))).join("\n");
+      const csv=[H.join(",")].concat(TD._day.rows.map(r=>[r.ts,r.name,r.sid,r.cls,r.sub,r.classId,r.event,r.chapter,r.score,r.total,r.ans].map(q).join(","))).join("\n");
       const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download=`digiclass-${TD._day.dsel}.csv`; document.body.appendChild(a); a.click(); a.remove(); }
     if(e.target.closest("[data-tlock]")){ TD=null; store.set(K.pin,""); rerender(); }
   });
