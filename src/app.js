@@ -2361,11 +2361,14 @@ const CLS = (()=>{
       if(r.event==="open") s.opened.add(r.chapter); if(r.event==="done") s.done.add(r.chapter); if(r.event==="undone") s.done.delete(r.chapter);
       if(r.event==="quiz"){ s.quiz.push(r); s.qby[r.chapter]=(+r.score)/(+r.total||1); } if(r.event==="paper") s.papers.push(r); });
     const all = Object.values(studs);
-    const cf=TD.filter||"", cidf=TD.cidfilter||"", sf=TD.sfilter||"", tf=TD.tfilter||"";
+    const cf=TD.filter||"", cidf=TD.cidfilter||"", sf=TD.sfilter||"", tf=TD.tfilter||"", chf=TD.chfilter||"";
     const pass = s => (!cf||s.cls===cf)&&(!cidf||s.classId===cidf)&&(!sf||s.sub===sf);
     const list = all.filter(pass).sort((a,b)=>String(a.cls).localeCompare(String(b.cls))||String(a.name).localeCompare(String(b.name)));
     const keys = new Set(list.map(s=>s.k));
-    const A = AA.filter(r=>keys.has(keyOf(r)));
+    const A0 = AA.filter(r=>keys.has(keyOf(r)));
+    const chapterOpts = [...new Set(A0.map(r=>String(r.chapter).split("@")[0]))].filter(id=>CHBY[id])
+      .sort((a,b)=>(CHBY[a].course.id.localeCompare(CHBY[b].course.id))||((CHBY[a].num||0)-(CHBY[b].num||0)));
+    const A = chf ? A0.filter(r=>String(r.chapter).split("@")[0]===chf) : A0;
     const F = FF.filter(f=>(!cf||f.cls===cf)&&(!cidf||!f.classId||f.classId===cidf)&&(!sf||!f.sub||f.sub===sf));
     const avg = s => s.quiz.length ? s.quiz.reduce((n,q)=>n+(+q.score)/(+q.total||1),0)/s.quiz.length : null;
     const pc = (a,b) => b ? Math.round(a/b*100) : null;
@@ -2447,8 +2450,11 @@ const CLS = (()=>{
     const statsHTML = `<div class="th-stats"><div class="ths-big"><b>${all.length}</b><span>students joined</span></div><div class="ths-big today"><b>${todayN}</b><span>logged in today</span></div>
       <div class="ths-cls">${Object.keys(byCls).sort().map(k=>`<span><b>${byCls[k]}</b> Grade ${esc(k)}</span>`).join("")||`<span>No students yet</span>`}</div></div>`;
     const about = f => { if(!f.ref) return f.page||""; const r=String(f.ref); if(r.includes("@")){ const [c,si]=r.split("@"), ch=CHBY[c]; return ch?(/^p\d+$/.test(String(si).split("#")[0])?`${ch.title}, Lab ${String(si).split("#")[0].slice(1)}`:`${ch.title}, topic ${ch.num?ch.num+"."+(+si+1):+si+1}`):r; } return (CHBY[r.split(":")[0]]||{}).title||r; };
-    return `<section class="tlive" id="tlive"><div class="tl-head"><h2 class="t-h">🏫 My Class (live)</h2><div class="tl-act"><button class="btn" data-trefresh>↻ Refresh</button><button class="btn" data-tcsv>⬇ Download CSV</button><button class="btn ghost" data-dg-teacher-code>🎮 Reward day</button><button class="btn ghost" data-tlock>Lock</button></div></div>
-      <div class="tfilters">${sel("data-tfilter","Grade",cf,[["","All grades"]].concat(grades.map(c=>[c,"Grade "+c])))}${sel("data-tsfilter","Subject",sf,[["","All subjects"]].concat(subjOpts.map(c=>[c,c])))}${sel("data-tcidfilter","My class",cidf,[["","All classes"]].concat(DC_CLASS.sections.map(c=>[c.id,c.label])))}</div>
+    const fLabel = [cf&&("Grade "+cf), cidf&&((DC_CLASS.sections.find(x=>x.id===cidf)||{}).label), sf&&short(sf), chf&&(CHBY[chf]&&CHBY[chf].title)].filter(Boolean).join(" · ");
+    TD._filtered = {A, label: fLabel};
+    return `<section class="tlive" id="tlive"><div class="tl-head"><h2 class="t-h">🏫 My Class (live)</h2><div class="tl-act"><button class="btn" data-trefresh>↻ Refresh</button><button class="btn" data-tcsv>⬇ Download CSV${fLabel?` <small>(${esc(fLabel)})</small>`:""}</button><button class="btn ghost" data-tarchive>📦 Archive old data</button><button class="btn ghost" data-dg-teacher-code>🎮 Reward day</button><button class="btn ghost" data-tlock>Lock</button></div></div>
+      <div class="tfilters">${sel("data-tfilter","Grade",cf,[["","All grades"]].concat(grades.map(c=>[c,"Grade "+c])))}${sel("data-tsfilter","Subject",sf,[["","All subjects"]].concat(subjOpts.map(c=>[c,c])))}${sel("data-tcidfilter","My class",cidf,[["","All classes"]].concat(DC_CLASS.sections.map(c=>[c.id,c.label])))}${sel("data-tchfilter","Topic",chf,[["","All topics"]].concat(chapterOpts.map(id=>[id,CHBY[id].title+" ("+CHBY[id].course.short+" "+CHBY[id].course.grade+")"])))}</div>
+      <p class="meta">The CSV button exports exactly the rows shown by your current Grade/Subject/My class/Topic filters above — pick one or more filters, then download, to get a class-wise or topic-wise CSV instead of everything mixed together.</p>
       ${statsHTML}
       ${actionHTML}
       <div class="pp-grid">
@@ -2478,13 +2484,15 @@ const CLS = (()=>{
   function loadTD(pin, cb){
     fetch(`${EP}?action=summary&pin=${encodeURIComponent(pin)}`).then(r=>r.json()).then(j=>{
       if(j.error){ cb(j.error==="pin"?"Wrong PIN.":"Error: "+j.error); return; }
-      store.set(K.pin,pin); TD={activity:j.activity||[],feedback:j.feedback||[],filter:TD&&TD.filter||"",cidfilter:TD&&TD.cidfilter||"",sfilter:TD&&TD.sfilter||"",tfilter:TD&&TD.tfilter||""}; cb(null);
+      store.set(K.pin,pin); TD={activity:j.activity||[],feedback:j.feedback||[],filter:TD&&TD.filter||"",cidfilter:TD&&TD.cidfilter||"",sfilter:TD&&TD.sfilter||"",tfilter:TD&&TD.tfilter||"",chfilter:TD&&TD.chfilter||""}; cb(null);
     }).catch(()=>cb("Couldn't reach the class sheet. Check the Web app URL and that access is set to 'Anyone'."));
   }
   function toCSV(){
-    const rows=[["time","name","student_id","grade","subject","class","event","course","chapter","score","total"]].concat((TD.activity||[]).map(r=>[r.ts,r.name,r.sid||"",r.cls,r.sub||"",r.classId||"",r.event,r.course||"",r.chapter||"",r.score??"",r.total??""]));
+    const src=(TD._filtered&&TD._filtered.A)||TD.activity||[];
+    const rows=[["time","name","student_id","grade","subject","class","event","course","chapter","score","total"]].concat(src.map(r=>[r.ts,r.name,r.sid||"",r.cls,r.sub||"",r.classId||"",r.event,r.course||"",r.chapter||"",r.score??"",r.total??""]));
     const csv=rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(",")).join("\n");
-    const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download="digiclass-activity.csv"; a.click();
+    const slug=((TD._filtered&&TD._filtered.label)||"all").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"")||"all";
+    const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download=`digiclass-activity-${slug}.csv`; a.click();
   }
 
   /* ---------- hooks into existing features ---------- */
@@ -2514,6 +2522,19 @@ const CLS = (()=>{
     if(e.target.closest("[data-leave]")){ if(confirm("Change your name or class on this device?")){ store.set(K.me,null); rerender(); } }
     if(e.target.closest("[data-trefresh]")){ loadTD(store.get(K.pin,""), err=>{ if(err) toast(err); else { toast("Updated ✓"); rerender(); } }); }
     if(e.target.closest("[data-tcsv]")) toCSV();
+    if(e.target.closest("[data-tarchive]")){
+      const months=prompt("Archive (move) results older than how many months?\n\nRows go into \"Archive - …\" sheets in your Google Sheet — nothing is deleted, they just stop clogging up live results and every-time CSV downloads. You can still open or export the Archive sheets any time.\n\nType a number of months (e.g. 12):","12");
+      if(months===null) return;
+      const n=Math.max(1, parseInt(months,10)||12);
+      const before=new Date(Date.now()-n*30*864e5).toISOString().slice(0,10);
+      if(!confirm(`Move every row from before ${before} into Archive sheets?`)) return;
+      const pin=store.get(K.pin,"");
+      fetch(`${EP}?action=archive&before=${encodeURIComponent(before)}&confirm=yes&pin=${encodeURIComponent(pin)}`).then(r=>r.json()).then(j=>{
+        if(j.error){ toast("Error: "+j.error); return; }
+        toast(`Archived ${j.moved||0} old row${j.moved===1?"":"s"} ✓`);
+        loadTD(pin, err=>{ if(!err) rerender(); });
+      }).catch(()=>toast("Couldn't reach the class sheet."));
+    }
     const dcb=e.target.closest("[data-tdcsv]");
     if(dcb&&TD&&TD._day){ const H=["Time","Name","Student ID","Class","Subject","Section","Event","Lesson/topic","Score","Total","Answer"];
       const q=v=>`"${String(v==null?"":v).replace(/"/g,'""')}"`;
@@ -2521,7 +2542,7 @@ const CLS = (()=>{
       const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download=`digiclass-${TD._day.dsel}.csv`; document.body.appendChild(a); a.click(); a.remove(); }
     if(e.target.closest("[data-tlock]")){ TD=null; store.set(K.pin,""); rerender(); }
   });
-  document.addEventListener("change",e=>{ const df=e.target.closest("[data-tdfilter]"); if(df&&TD){ TD.dfilter=df.value; rerender(); setTimeout(()=>{ const h=document.getElementById("tdate"); if(h) h.scrollIntoView(); },50); return; } const f=e.target.closest("[data-tfilter]"); if(f&&TD){ TD.filter=f.value; rerender(); } const cidfl=e.target.closest("[data-tcidfilter]"); if(cidfl&&TD){ TD.cidfilter=cidfl.value; rerender(); } const sfl=e.target.closest("[data-tsfilter]"); if(sfl&&TD){ TD.sfilter=sfl.value; rerender(); } const tfl=e.target.closest("[data-ttfilter]"); if(tfl&&TD){ TD.tfilter=tfl.value; rerender(); setTimeout(()=>{ const c=document.getElementById("tcomments"); if(c) c.scrollIntoView(); },0); } });
+  document.addEventListener("change",e=>{ const df=e.target.closest("[data-tdfilter]"); if(df&&TD){ TD.dfilter=df.value; rerender(); setTimeout(()=>{ const h=document.getElementById("tdate"); if(h) h.scrollIntoView(); },50); return; } const f=e.target.closest("[data-tfilter]"); if(f&&TD){ TD.filter=f.value; rerender(); } const cidfl=e.target.closest("[data-tcidfilter]"); if(cidfl&&TD){ TD.cidfilter=cidfl.value; rerender(); } const sfl=e.target.closest("[data-tsfilter]"); if(sfl&&TD){ TD.sfilter=sfl.value; rerender(); } const chfl=e.target.closest("[data-tchfilter]"); if(chfl&&TD){ TD.chfilter=chfl.value; rerender(); } const tfl=e.target.closest("[data-ttfilter]"); if(tfl&&TD){ TD.tfilter=tfl.value; rerender(); setTimeout(()=>{ const c=document.getElementById("tcomments"); if(c) c.scrollIntoView(); },0); } });
   document.addEventListener("change",e=>{
     const ts=e.target.closest("[data-tsec]");
     if(ts){ TSEC=ts.value; store.set("dc-tsec",TSEC); const live=document.getElementById("tcLive"); if(live) live.innerHTML=""; const gb=document.getElementById("gBoard"); if(gb) gb.innerHTML=""; if(typeof toast==="function"){ const s=DC_CLASS.sections.find(x=>x.id===TSEC); toast(s?`Now viewing: Section ${s.sec}`:"Switched class"); } }

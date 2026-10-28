@@ -225,7 +225,51 @@ function doGet(e) {
       feedback: fb.filter(function (f) { const r = String(f.ref); return r === t || r.indexOf(t + '#') === 0; })
     });
   }
+  // Teacher-only: moves rows older than &before=YYYY-MM-DD out of the live Activity/Feedback
+  // sheets into matching "Archive - …" sheets in this same spreadsheet. Nothing is ever deleted —
+  // it's moved, so old results stay available (open or download the Archive sheets any time) but
+  // stop slowing down "My Class (live)" and stop mixing into every CSV download. Leave &before= off
+  // to archive everything older than 12 months.
+  if (a === 'archive') {
+    if (p.confirm !== 'yes') return out_({ error: 'confirm' });
+    return out_({ ok: true, moved: archiveOldRows_(p.before || '') });
+  }
   return out_({ error: 'unknown action' });
+}
+
+function archiveOldRows_(beforeIso) {
+  const cutoff = beforeIso ? new Date(beforeIso + 'T00:00:00') : new Date(Date.now() - 365 * 864e5);
+  if (isNaN(cutoff)) return 0;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const bases = ['Activity', 'Feedback'];
+  const lock = LockService.getScriptLock();
+  lock.waitLock(25000);
+  let moved = 0;
+  try {
+    ss.getSheets().forEach(function (sh) {
+      const name = sh.getName();
+      if (name.indexOf('Archive - ') === 0) return; // never archive an archive
+      if (!bases.some(function (b) { return name === b || name.indexOf(b + ' - ') === 0; })) return;
+      const last = sh.getLastRow(), cols = sh.getLastColumn();
+      if (last < 2) return;
+      const vals = sh.getRange(2, 1, last - 1, cols).getValues();
+      const keep = [], move = [];
+      vals.forEach(function (r) {
+        const t = r[0] instanceof Date ? r[0] : new Date(r[0]);
+        (!isNaN(t) && t < cutoff ? move : keep).push(r);
+      });
+      if (!move.length) return;
+      const headers = sh.getRange(1, 1, 1, cols).getValues()[0];
+      const ar = sheet_('Archive - ' + name, headers);
+      ar.getRange(ar.getLastRow() + 1, 1, move.length, cols).setValues(move);
+      sh.getRange(2, 1, last - 1, cols).clearContent();
+      if (keep.length) sh.getRange(2, 1, keep.length, cols).setValues(keep);
+      moved += move.length;
+    });
+  } finally {
+    lock.releaseLock();
+  }
+  return moved;
 }
 
 // Reads and merges every sheet for this base name (the unsplit sheet, if any still exists from
