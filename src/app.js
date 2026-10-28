@@ -855,7 +855,16 @@ const IC = {
   sun:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
   moon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5z"/></svg>',
   copy:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" width="13" height="13"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>',
-  chev:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg>'
+  chev:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg>',
+  rocket:'<svg class="ic-cosmic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c2.5 2 4 5.5 4 9 0 1.8-.5 3.4-1.3 4.7l-2.7 2.3-2.7-2.3C8.5 14.4 8 12.8 8 11c0-3.5 1.5-7 4-9z"/><circle cx="12" cy="9" r="1.5" fill="currentColor"/><path d="M8.5 13c-1.5.3-2.5 1.5-3 4 1.8-.3 3-1 4-2.2"/><path d="M15.5 13c1.5.3 2.5 1.5 3 4-1.8-.3-3-1-4-2.2"/><path d="M10 18.5c0 1.3.8 2.5 2 3 1.2-.5 2-1.7 2-3"/></svg>',
+  comet:'<svg class="ic-cosmic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="17" cy="7" r="2.4" fill="currentColor" stroke="none"/><path d="M15 9 9 15M12.5 11 7 14M13.7 9.8 6 17" opacity=".55"/></svg>',
+  orbitRing:'<svg class="ic-cosmic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4.5"/><ellipse class="ic-spin" cx="12" cy="12" rx="10" ry="3.5" transform="rotate(-20 12 12)"/></svg>',
+  orbitRing2:'<svg class="ic-cosmic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3.2"/><ellipse class="ic-spin" cx="12" cy="12" rx="10" ry="3.2" transform="rotate(-18 12 12)"/><ellipse class="ic-spin" cx="12" cy="12" rx="7" ry="2.2" transform="rotate(22 12 12)"/></svg>',
+  satellite:'<svg class="ic-cosmic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M9 11 4 9M9 13 4 15M15 11l5-2M15 13l5 2"/><path d="M12 9V5M10 5h4" stroke-width="1.6"/></svg>',
+  ufo:'<svg class="ic-cosmic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="13" rx="9" ry="3"/><path d="M8 13a4 4 0 0 1 8 0"/><path d="M12 6v3" stroke-width="1.6"/><circle cx="12" cy="5.3" r="1" fill="currentColor" stroke="none"/><circle class="ic-twinkle" cx="7" cy="15.2" r=".8" fill="currentColor" stroke="none"/><circle class="ic-twinkle" cx="12" cy="16" r=".8" fill="currentColor" stroke="none"/><circle class="ic-twinkle" cx="17" cy="15.2" r=".8" fill="currentColor" stroke="none"/></svg>',
+  starburst:'<svg class="ic-cosmic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l1.8 6.3L20 10l-6.2 1.7L12 18l-1.8-6.3L4 10l6.2-1.7z"/><circle class="ic-twinkle" cx="19" cy="4" r="1.1"/><circle class="ic-twinkle" cx="4.5" cy="18" r="1"/></svg>',
+  spaceDie:'<svg class="ic-cosmic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3 20 7.5v9L12 21 4 16.5v-9z"/><circle cx="12" cy="8.3" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="12.5" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="12.5" r="1" fill="currentColor" stroke="none"/></svg>',
+  moonCrescent:'<svg class="ic-cosmic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M15.5 3A9 9 0 1 0 15.5 21 10.5 10.5 0 0 1 15.5 3z"/></svg>'
 };
 
 /* Students see only their own course; the teacher sees everything. */
@@ -3268,12 +3277,12 @@ const TEACH = (()=>{
     ["Think, pair, share","30 seconds alone, 30 seconds comparing with a partner, then pairs share. Listen for pairs who changed their mind."],
     ["Show me in the app","Students answer in DigiClass; press 📊 Live results to see % correct and who needs help, by name."]];
   const HD = [["3","✅","Got it right"],["2","🟡","Partly"],["1","❌","Not yet"]];
-  const LAB_STAGES = [["starter","🔥","Starter",3],["explore","🔍","Explore",3],["learn","📖","Explain",4],["lab","🧪","Lab work",25],["exit","✅","Plenary",5]];
-  const LAB_STAGES_MID = [["starter","🔥","Starter",3],["explore","🔍","Explore",3],["learn","📖","Explain",4],["mid","⏸","Mid-plenary",4],["lab","🧪","Lab work",25],["exit","✅","Plenary",5]];
+  const LAB_STAGES = [["starter",IC.rocket,"Starter",3],["explore",IC.comet,"Explore",3],["learn",IC.orbitRing,"Explain",4],["lab",IC.ufo,"Lab work",25],["exit",IC.starburst,"Plenary",5]];
+  const LAB_STAGES_MID = [["starter",IC.rocket,"Starter",3],["explore",IC.comet,"Explore",3],["learn",IC.orbitRing,"Explain",4],["mid",IC.satellite,"Mid-plenary",4],["lab",IC.ufo,"Lab work",25],["exit",IC.starburst,"Plenary",5]];
   // Chapters whose practical (@p1/@p2) sessions include a Mid-plenary check-in after Explain.
   const MID_LAB_CHAPTERS = new Set(["ip11-sql","ip11-dictionaries","cs11-lists-tuples","cs11-dictionaries","sql","ip12-series","ip12-dataframe"]);
   const stg = topic => { const s=String(topic||""); if(!/@p\d+$/.test(s)) return STAGES; return MID_LAB_CHAPTERS.has(s.split("@")[0])?LAB_STAGES_MID:LAB_STAGES; };
-  const STAGES = [["starter","🔥","Engage",3],["explore","🔍","Explore",5],["learn","📖","Explain",8],["mid","⏸","Mid-plenary",5],["activity","👥","Elaborate",13],["evaluate","🎲","Evaluate",5],["exit","🎟","Plenary",5]];
+  const STAGES = [["starter",IC.rocket,"Engage",3],["explore",IC.comet,"Explore",5],["learn",IC.orbitRing,"Explain",8],["mid",IC.satellite,"Mid-plenary",5],["activity",IC.orbitRing2,"Elaborate",13],["evaluate",IC.spaceDie,"Evaluate",5],["exit",IC.starburst,"Plenary",5]];
   // The same two cooperative strategies in every lesson, so students know them well.
   const TPS = {name:"Think–Pair–Share", steps:[["🤔","Think","On your own, 1 minute. Work it out in your notebook."],["👥","Pair","Compare with your partner. Agree on one answer and why."],["📣","Share","Tap your answer. Be ready to explain it to the class."]]};
   const NHT = {name:"Numbered Heads Together", roles:[["1","Reader","Reads the task aloud and keeps the group on time."],["2","Solver","Writes the working in the notebook."],["3","Checker","Checks the answer against the task and the hint."],["4","Reporter","Types the group's answer and explains it if the teacher calls number 4."]], how:"Put your heads together and make sure EVERY member can explain the answer. Your teacher may call any number, so be ready."};
@@ -3464,14 +3473,14 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
   function stageNav(cur, topic){
     const STAGES=stg(topic), seen=(store.get("dc-lsn",{})[`${topic}:seen`])||[], n=STAGES.filter(x=>seen.includes(x[0])).length;
     return `${!isT()?`<div class="tc-prog" aria-label="Lesson progress"><div><span style="width:${Math.round(n/STAGES.length*100)}%"></span></div><small>Your progress: ${n} of ${STAGES.length} stages</small></div>`:""}
-      <nav class="tc-steps" aria-label="Lesson stages">${STAGES.map(([k,ic,t,m])=>`<button data-tc-stage="${k}" class="${k===cur?"on":""} ${seen.includes(k)?"done":""}"><i>${seen.includes(k)&&k!==cur?"✔":ic}</i><span>${t}</span><small>${m} min</small></button>`).join("")}</nav>`;
+      <nav class="tc-steps" aria-label="Lesson stages">${STAGES.map(([k,ic,t,m])=>`<button data-tc-stage="${k}" class="${k===cur?"on":""} ${seen.includes(k)?"done":""}"><i class="${k===cur?"ic-float":""}">${seen.includes(k)&&k!==cur?IC.check:ic}</i><span>${t}</span><small>${m} min</small></button>`).join("")}</nav>`;
   }
   function markSeen(topic, stage){ if(isT()) return; const m=store.get("dc-lsn",{}), k=`${topic}:seen`, a=m[k]||[]; if(!a.includes(stage)){ a.push(stage); m[k]=a; store.set("dc-lsn",m); const st=stg(topic).length, n=a.length; const bar=document.querySelector(".tc-prog span"), lab=document.querySelector(".tc-prog small"); if(bar) bar.style.width=Math.round(n/st*100)+"%"; if(lab) lab.textContent=`Your progress: ${n} of ${st} stages`; const b=document.querySelector(`[data-tc-stage="${stage}"]`); if(b) b.classList.add("done"); } }
   function mcq(kind, topic, x){
     const st=store.get("dc-lsn",{})[`${topic}:${kind}`], done=st!=null;
     return `<div class="ls-mcq" data-tcq="${kind}" data-topic="${topic}"><div class="ls-q">${md(x.q)}</div>
       <div class="ls-opts abcd-grid">${x.o.map((o,k)=>`<button data-tc-ans="${k}" ${done?"disabled":""} class="abcd c${k} ${done?(k===x.a?"right":k===st?"wrong":"dim"):""}"><b aria-hidden="true">${"ABCD"[k]}</b><span>${inline(o)}</span></button>`).join("")}</div>
-      <p class="ls-fb">${done?`${st===x.a?"✅ <b>Correct!</b>":"💡 <b>Not quite.</b>"} ${inline(x.why)}`:""}</p></div>`;
+      <p class="ls-fb">${done?`${st===x.a?`${IC.starburst} <b>Correct!</b>`:`${IC.bulb} <b>Not quite.</b>`} ${inline(x.why)}`:""}</p></div>`;
   }
   function qaNote(id){ return id?((store.get("dc-qa-notes",{})||{})[id]||""):""; }
   function qaNoteSet(id,v){ if(!id) return; const m=store.get("dc-qa-notes",{})||{}; if(v) m[id]=v; else delete m[id]; store.set("dc-qa-notes",m); }
@@ -3619,7 +3628,7 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
   }
 
   /* ---------- lab lessons: Part A for everyone, then a level set of 8 tasks ---------- */
-  const LABL = {L:["🟢","Foundation","Set 1","Step by step, with hints"],M:["🟡","Intermediate","Set 2","For most of the class"],H:["🔴","Challenge","Set 3","Harder tasks, less help"]};
+  const LABL = {L:[IC.moonCrescent,"Foundation","Set 1","Step by step, with hints"],M:[IC.orbitRing,"Intermediate","Set 2","For most of the class"],H:[`<span class="ic-glow">${IC.trophy}</span>`,"Challenge","Set 3","Harder tasks, less help"]};
   const TLV = {};
   const labSt = topic => (store.get("dc-labx",{})[topic])||{};
   function labSave(topic, f){ const m=store.get("dc-labx",{}), o=m[topic]||{}; f(o); m[topic]=o; store.set("dc-labx",m); }

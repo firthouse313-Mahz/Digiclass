@@ -2836,7 +2836,7 @@ mark{background:rgba(255,196,0,.5)}
 #dc-ai-send:disabled{opacity:.5;cursor:wait}
 </style>
 
-<button id="dc-ai-btn" aria-label="DigiClass AI" title="DigiClass AI" aria-haspopup="dialog" aria-expanded="false">🤖 DigiClass AI</button>
+<button id="dc-ai-btn" aria-label="DigiClass AI" title="DigiClass AI" aria-haspopup="dialog" aria-expanded="false"><span class="dc-fab-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="13" rx="9" ry="3"/><path d="M8 13a4 4 0 0 1 8 0"/><path d="M12 6v3" stroke-width="1.6"/><circle cx="12" cy="5.3" r="1" fill="currentColor" stroke="none"/><circle cx="7" cy="15.2" r=".8" fill="currentColor" stroke="none"/><circle cx="12" cy="16" r=".8" fill="currentColor" stroke="none"/><circle cx="17" cy="15.2" r=".8" fill="currentColor" stroke="none"/></svg></span>DigiClass AI</button>
 
 <div id="dc-ai-panel" role="dialog" aria-label="DigiClass AI Tutor">
   <div id="dc-ai-head">
@@ -2922,21 +2922,38 @@ mark{background:rgba(255,196,0,.5)}
 })();
 </script>
 
-<a id="dc-lab-btn" aria-label="Code Lab" title="Code Lab" href="playground.html" style="position:fixed;right:18px;bottom:18px;z-index:9999;display:flex;align-items:center;gap:8px;background:linear-gradient(120deg,#3D7BFF 0%,#8B5CF6 52%,#EC4899 100%);color:#fff;font:700 .92rem/1 Inter,system-ui,sans-serif;text-decoration:none;padding:12px 18px;border-radius:999px;box-shadow:0 10px 30px -10px rgba(139,92,246,.6)">💻 Code Lab</a>
+<a id="dc-lab-btn" aria-label="Code Lab" title="Code Lab" href="playground.html" style="position:fixed;right:18px;bottom:18px;z-index:9999;display:flex;align-items:center;gap:8px;background:linear-gradient(120deg,#3D7BFF 0%,#8B5CF6 52%,#EC4899 100%);color:#fff;font:700 .92rem/1 Inter,system-ui,sans-serif;text-decoration:none;padding:12px 18px;border-radius:999px;box-shadow:0 10px 30px -10px rgba(139,92,246,.6)"><span class="dc-fab-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c2.5 2 4 5.5 4 9 0 1.8-.5 3.4-1.3 4.7l-2.7 2.3-2.7-2.3C8.5 14.4 8 12.8 8 11c0-3.5 1.5-7 4-9z"/><circle cx="12" cy="9" r="1.5" fill="currentColor"/><path d="M8.5 13c-1.5.3-2.5 1.5-3 4 1.8-.3 3-1 4-2.2"/><path d="M15.5 13c1.5.3 2.5 1.5 3 4-1.8-.3-3-1-4-2.2"/><path d="M10 18.5c0 1.3.8 2.5 2 3 1.2-.5 2-1.7 2-3"/></svg></span>Code Lab</a>
 <style id="dc-classroom-addon">
 /* ---- One corner dock: AI + Code Lab as small round buttons, bottom-left above the badge ---- */
 #dc-ai-btn,#dc-lab-btn{position:fixed!important;left:18px!important;right:auto!important;z-index:9999;width:48px;height:48px;padding:0!important;
   border-radius:50%!important;display:grid!important;place-items:center;font-size:0!important;gap:0!important;opacity:.92;transition:transform .15s,opacity .15s}
 #dc-ai-btn{bottom:84px!important}
 #dc-lab-btn{bottom:140px!important}
-#dc-ai-btn::before{content:"🤖";font-size:1.35rem}
-#dc-lab-btn::before{content:"💻";font-size:1.3rem}
+#dc-ai-btn .dc-fab-ic,#dc-lab-btn .dc-fab-ic{width:24px;height:24px;display:block;animation:dcFabFloat 3s ease-in-out infinite}
+#dc-ai-btn .dc-fab-ic svg,#dc-lab-btn .dc-fab-ic svg{width:100%;height:100%}
+@keyframes dcFabFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 #dc-ai-btn:hover,#dc-lab-btn:hover{transform:scale(1.08);opacity:1}
 #dc-ai-panel{left:76px!important;bottom:14px!important}
 @media (max-width:980px){#dc-ai-btn{bottom:calc(128px + env(safe-area-inset-bottom,0px))!important}#dc-lab-btn{bottom:calc(184px + env(safe-area-inset-bottom,0px))!important}}
 /* In a lesson they fade back so they never cover the board */
 body.dc-lesson #dc-ai-btn,body.dc-lesson #dc-lab-btn,body.dc-lesson .dc-badge{opacity:.35}
 body.dc-lesson #dc-ai-btn:hover,body.dc-lesson #dc-lab-btn:hover,body.dc-lesson .dc-badge:hover{opacity:1}
+@media (prefers-reduced-motion:reduce){#dc-ai-btn .dc-fab-ic,#dc-lab-btn .dc-fab-ic{animation:none}}
+</style>
+<style id="dc-cosmic-icons">
+/* ---- Cosmic icon set: sizing + gentle animation for the new SVG icons that replaced emoji ---- */
+.tc-steps button i svg{width:1.2rem;height:1.2rem;display:block}
+.lx-pick button b svg,.lx-sethead b svg,.lx-set .lx-sethead b svg{width:18px;height:18px;vertical-align:-3px;margin-right:3px}
+.ls-fb svg{width:16px;height:16px;vertical-align:-2px;margin-right:3px}
+.ic-spin{transform-box:fill-box;transform-origin:center;animation:dcRingSpin 7s linear infinite}
+.ic-twinkle{animation:dcTwinkle 1.6s ease-in-out infinite}
+.ic-glow{display:inline-flex;animation:dcGlow 2.4s ease-in-out infinite}
+.tc-steps button i.ic-float{animation:dcIconFloat 2.2s ease-in-out infinite}
+@keyframes dcRingSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes dcTwinkle{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes dcGlow{0%,100%{filter:drop-shadow(0 0 0 rgba(247,103,7,0))}50%{filter:drop-shadow(0 0 5px rgba(247,103,7,.75))}}
+@keyframes dcIconFloat{0%,50%,100%{transform:translateY(0)}25%{transform:translateY(-2px)}75%{transform:translateY(1px)}}
+@media (prefers-reduced-motion:reduce){.ic-spin,.ic-twinkle,.ic-glow,.tc-steps button i.ic-float{animation:none!important}}
 body.dc-lesson .ak-fab{display:none!important}
 
 /* ---- Floating stage timer, bottom-right, teacher-only ---- */
