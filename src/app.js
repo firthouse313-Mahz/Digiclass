@@ -3126,16 +3126,26 @@ const RUNNER = (()=>{
     db.create_function("NOW",()=>new Date().toISOString().slice(0,19).replace("T"," "));
   }
   const fmt = v => v==null?"NULL":typeof v==="number"?(Number.isInteger(v)?String(v):String(+v.toFixed(10))):String(v);
+  // MySQL's default collation compares text case-insensitively; SQLite's default doesn't.
+  // Rewrite CREATE TABLE column types (VARCHAR(n)/CHAR(n)/TEXT) to add COLLATE NOCASE so
+  // '=', ORDER BY, GROUP BY etc. on text columns behave like the MySQL the lessons teach,
+  // without needing to edit every lab's CREATE TABLE text. Applied to both the hidden
+  // "setup" SQL and the student's own typed SQL, since some tasks have students write
+  // their own CREATE TABLE (Part A).
+  const ciStmt = st => !/^\s*create\s+table\b/i.test(st) ? st :
+    st.replace(/\b(VARCHAR|CHAR)\s*\(\s*\d+\s*\)(?!\s*COLLATE)/gi,"$& COLLATE NOCASE")
+      .replace(/\bTEXT\b(?!\s*COLLATE)/gi,"TEXT COLLATE NOCASE");
+  const ciSetup = sql => String(sql||"").split(";").map(ciStmt).join(";");
   async function runSQL(setup, code){
     const S=await sql(); const db=new S.Database();
     try{
       helpers(db);
-      if(setup) db.exec(setup);
+      if(setup) db.exec(ciSetup(setup));
       // run statements one by one so CONCAT with 3+ args can be rewritten as nested CONCATs
       const stmts=code.split(";").map(s=>s.trim()).filter(Boolean);
       const rows=[], tables=[];
       for(const st of stmts){
-        const q=st.replace(/CONCAT\s*\(([^()]*)\)/gi,(m,inner)=>{ const parts=splitArgs(inner); return parts.length<=2?m:parts.slice(1).reduce((acc,x)=>`CONCAT(${acc},${x})`,parts[0]); });
+        const q=ciStmt(st).replace(/CONCAT\s*\(([^()]*)\)/gi,(m,inner)=>{ const parts=splitArgs(inner); return parts.length<=2?m:parts.slice(1).reduce((acc,x)=>`CONCAT(${acc},${x})`,parts[0]); });
         const res=db.exec(q);
         res.forEach(r=>{ tables.push(r); r.values.forEach(v=>rows.push(v.map(fmt).join(" | "))); });
       }
