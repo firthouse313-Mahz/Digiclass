@@ -3619,24 +3619,51 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
   }
 
   /* ---------- lab lessons: Part A for everyone, then a level set of 8 tasks ---------- */
-  const LABL = {L:["🟢","Foundation","Set 1","Step by step, with hints"],M:["🟡","Intermediate","Set 2","For most of the class"],H:["🔴","Advanced","Set 3","Harder tasks, less help"]};
+  const LABL = {L:["🟢","Foundation","Set 1","Step by step, with hints"],M:["🟡","Intermediate","Set 2","For most of the class"],H:["🔴","Challenge","Set 3","Harder tasks, less help"]};
   const TLV = {};
   const labSt = topic => (store.get("dc-labx",{})[topic])||{};
   function labSave(topic, f){ const m=store.get("dc-labx",{}), o=m[topic]||{}; f(o); m[topic]=o; store.set("dc-labx",m); }
   const isDone = (st,k) => !!(st.done&&st.done[k]);
+  function labAutoTier(topic, X){
+    const st=labSt(topic), n=(X.partA||[]).length; if(!n) return "M";
+    let correct=0, neededHelp=false, anyRetry=false;
+    for(let j=0;j<n;j++){ const key="A"+(j+1), tries=(st.tries||{})[key]||0;
+      if(isDone(st,key)) correct++;
+      if(tries>=2) neededHelp=true;
+      if(tries>=1) anyRetry=true;
+    }
+    const frac=correct/n;
+    if(frac<0.6||neededHelp) return "L";
+    if(frac<1||anyRetry) return "M";
+    return "H";
+  }
   function labTask(topic, key, q){
     const st=labSt(topic), id=`${topic}:${key}`, done=isDone(st,key), tries=(st.tries||{})[key]||0, sol=isT()||done||tries>=2;
     if(typeof RUNNER!=="undefined") RUNNER.register(id,q.run);
-    return `<article class="lx-task ${done?"done":""}" data-lxk="${key}"><header><span class="lx-n">${key[0]==="A"?"A"+key.slice(1):key.slice(1)}</span><h4>${esc(q.title)}</h4><em class="lx-ok" ${done?"":"hidden"}>✅ Done</em></header>
+    return `<article class="lx-task ${done?"done":""}" data-lxk="${key}"><header><span class="lx-n">${key[0]==="A"?"A"+key.slice(1):key[0]==="X"?"🏆":key.slice(1)}</span><h4>${esc(q.title)}</h4><em class="lx-ok" ${done?"":"hidden"}>✅ Done</em></header>
       <div class="page lx-q">${md(q.task)}</div>${q.run.lang==="python"&&!q.run.post&&q.run.expected?`<details class="lx-exp" ${key[0]==="L"||key[0]==="A"?"open":""}><summary>👀 Expected output</summary><pre>${esc(q.run.expected)}</pre></details>`:""}${typeof RUNNER!=="undefined"?RUNNER.box(q.run,id,{nosol:!sol}):""}
       ${q.hint?`<details class="cb-hint"><summary>💡 Hint</summary><p>${inline(q.hint)}</p></details>`:""}
       ${sol?"":`<p class="lx-solnote">Stuck? The solution opens after 2 tries.</p>`}</article>`;
   }
   function labSetHTML(topic, X, lv){
-    const st=labSt(topic), items=X.sets[lv]||[], n=items.filter((q,j)=>isDone(st,lv+(j+1))).length, nx=lv==="L"?"M":lv==="M"?"H":null, L=LABL[lv];
+    const st=labSt(topic), items=X.sets[lv]||[], n=items.filter((q,j)=>isDone(st,lv+(j+1))).length, nx=lv==="L"?"M":lv==="M"?"H":null, L=LABL[lv], allDone=n===items.length;
+    let nextBlock;
+    if(isT()){
+      nextBlock = nx
+        ? `<div class="lx-next"><p>Finished all 8? Move up to the next set.</p><button class="btn primary" data-lxlv="${nx}" data-topic="${topic}">${LABL[nx][0]} Go to ${LABL[nx][2]}: ${LABL[nx][1]}</button></div>`
+        : `<div class="lx-next"><p>🏆 Finished the Challenge set? Help a classmate, or explain your hardest query to the teacher.</p></div>`;
+    } else if(allDone && lv==="H"){
+      nextBlock = X.ext
+        ? `<div class="lx-next lx-ext"><h4 class="lx-h"><span>🏆</span> Extension</h4>${labTask(topic,"X1",X.ext)}</div>`
+        : `<div class="lx-next"><p>🏆 Finished the Challenge set? Help a classmate, or explain your hardest query to the teacher.</p></div>`;
+    } else if(allDone){
+      nextBlock = `<div class="lx-next"><p>🎉 Great work finishing ${L[2]}! Your teacher will let you know if you move up.</p></div>`;
+    } else {
+      nextBlock = "";
+    }
     return `<div class="lx-set lv${lv}"><div class="lx-sethead"><b>${L[0]} ${L[2]}: ${L[1]}</b><div class="lx-bar" aria-label="${n} of ${items.length} done"><span style="width:${Math.round(n/items.length*100)}%"></span></div><small class="lx-setn">${n} of ${items.length} done</small></div>
       ${items.map((q,j)=>labTask(topic,lv+(j+1),q)).join("")}
-      ${nx?`<div class="lx-next"><p>Finished all 8? Move up to the next set.</p><button class="btn primary" data-lxlv="${nx}" data-topic="${topic}">${LABL[nx][0]} Go to ${LABL[nx][2]}: ${LABL[nx][1]}</button></div>`:`<div class="lx-next"><p>🏆 Finished the Advanced set? Help a classmate, or explain your hardest query to the teacher.</p></div>`}</div>`;
+      ${nextBlock}</div>`;
   }
   function labPick(topic, X, lv){
     const st=labSt(topic);
@@ -3644,16 +3671,27 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
       return `<button data-lxlv="${k}" data-topic="${topic}" class="lv${k} ${lv===k?"on":""}" aria-pressed="${lv===k}"><b>${LABL[k][0]} ${LABL[k][2]}: ${LABL[k][1]}</b><small>${LABL[k][3]}</small>${isT()?"":`<span class="lx-cnt">${n} / ${(X.sets[k]||[]).length} done</span>`}</button>`; }).join("")}</div>`;
   }
   function labStage(topic, S, T){
-    const X=S.lab, st=labSt(topic), lv=isT()?(TLV[topic]||"L"):st.lv, aN=X.partA.filter((q,j)=>isDone(st,"A"+(j+1))).length;
+    const X=S.lab, st=labSt(topic), aN=X.partA.filter((q,j)=>isDone(st,"A"+(j+1))).length;
     const tool=((X.partA[0]||{}).run||{}).lang==="sql"?"MySQL":"IDLE";
+    let lv, bodyHTML;
+    if(isT()){
+      lv = TLV[topic]||"L";
+      bodyHTML = `${labPick(topic,X,lv)}<div class="lx-setwrap">${labSetHTML(topic,X,lv)}</div>`;
+    } else {
+      const aAttempted = X.partA.every((q,j)=>{ const key="A"+(j+1); return isDone(st,key)||((st.tries||{})[key]||0)>=2; });
+      lv = st.lv;
+      if(!lv && aAttempted){ lv = labAutoTier(topic, X); labSave(topic, o=>{ o.lv = lv; }); }
+      bodyHTML = lv
+        ? `<p class="meta lx-assigned">📍 Your set, based on Part A: <b>${LABL[lv][0]} ${LABL[lv][2]}: ${LABL[lv][1]}</b></p><div class="lx-setwrap">${labSetHTML(topic,X,lv)}</div>`
+        : `<p class="meta lx-choose">Finish Part A first — your set will be assigned automatically based on how you do.</p>`;
+    }
     return `<div class="tc-stage lx"><h3>🧪 Lab work <small>25 minutes: Part A for everyone, then your own set of 8 tasks.</small></h3>
       ${X.intro?`<div class="act-intro page">${md(X.intro)}</div>`:""}
       <p class="lx-how">Type your code in the box (or in ${tool} on the lab computer, then paste it here). Press <b>▶ Run</b>, then <b>✓ Check my answer</b>. Your teacher sees which tasks you have finished.</p>
-      ${tnote("Running the lab",`<p><b>Timing:</b> Part A together (about 5 minutes), then students choose a set (about 20 minutes).</p><p><b>Sets:</b> 🟢 Set 1 Foundation for students who need support, 🟡 Set 2 Intermediate for most of the class, 🔴 Set 3 Advanced for confident students. Students who finish a set move up to the next one.</p><p>Press <b>📊 Live results</b> to see each student's set, how many tasks they have finished and who is stuck.</p>${T.labnote?`<p>${inline(T.labnote)}</p>`:""}<p>Below, switch between the sets to see all 24 tasks; ▶ Show solution is always open for you.</p>`)}
+      ${tnote("Running the lab",`<p><b>Timing:</b> Part A together (about 5 minutes), then sets (about 20 minutes).</p><p><b>Sets:</b> 🟢 Set 1 Foundation, 🟡 Set 2 Intermediate, 🔴 Set 3 Challenge. A student's set is assigned automatically from Part A correctness and whether they needed help (2+ tries) — students cannot switch sets themselves. Use the picker below to preview any set yourself; it does not change the student's assignment.</p><p>Press <b>📊 Live results</b> to see each student's set, how many tasks they have finished and who is stuck.</p>${T.labnote?`<p>${inline(T.labnote)}</p>`:""}</div>`)}
       <section class="lx-part"><h4 class="lx-h"><span>Part A</span> Everyone <small class="lx-an">${isT()?"":`${aN} of ${X.partA.length} done`}</small></h4>${X.partA.map((q,j)=>labTask(topic,"A"+(j+1),q)).join("")}</section>
-      <section class="lx-part"><h4 class="lx-h"><span>Part B</span> ${isT()?"Level sets":"Choose your set"}</h4>
-        ${labPick(topic,X,lv)}
-        <div class="lx-setwrap">${lv?labSetHTML(topic,X,lv):`<p class="meta lx-choose">Choose the set that suits you. You can move up any time.</p>`}</div></section></div>`;
+      <section class="lx-part"><h4 class="lx-h"><span>Part B</span> ${isT()?"Level sets":lv?`Your set: ${LABL[lv][1]}`:"Locked"}</h4>
+        ${bodyHTML}</section></div>`;
   }
   function labRefresh(topic){
     const P=cache[topic]; if(!P||!P.s.lab) return; const X=P.s.lab, st=labSt(topic);
@@ -3666,7 +3704,7 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
   }
   function labSend(topic, data){ if(isT()) return; try{ const ch=CHBY[topic.split("@")[0]]; CLS.send(data.ev,{course:ch.course.id, chapter:topic, score:data.score, total:1, ans:data.ans}); }catch(e){} }
   (window.DC_RUN_HOOKS=window.DC_RUN_HOOKS||[]).push((id,good,el)=>{
-    const m=String(id).match(/^(.+@p\d+):([ALMH]\d+)$/); if(!m) return; const topic=m[1], key=m[2]; let first=false, stuck=false;
+    const m=String(id).match(/^(.+@p\d+):([ALMHX]\d+)$/); if(!m) return; const topic=m[1], key=m[2]; let first=false, stuck=false;
     labSave(topic,o=>{ o.done=o.done||{}; o.tries=o.tries||{}; if(good){ if(!o.done[key]){ o.done[key]=1; first=true; } } else { o.tries[key]=(o.tries[key]||0)+1; if(o.tries[key]===2&&!o.done[key]) stuck=true; } });
     if(first) labSend(topic,{ev:"lab",score:1,ans:key}); if(stuck) labSend(topic,{ev:"lab",score:0,ans:key});
     const st=labSt(topic), card=el&&el.closest(".lx-task");
@@ -3814,7 +3852,8 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
     if(t.closest("[data-tc-check]")){ await refreshOpen(true); rerender(); if(typeof toast==="function") toast(Object.keys(OPEN).length?"Checked ✓":"Not started yet"); return; }
     if(t.closest("[data-tc-present]")){ document.body.classList.toggle("present"); return; }
     const lxl=t.closest("[data-lxlv]"); if(lxl){ const topic=lxl.dataset.topic, k=lxl.dataset.lxlv, P=cache[topic]; if(!P||!P.s.lab) return;
-      if(isT()) TLV[topic]=k; else { labSave(topic,o=>{ o.lv=k; }); labSend(topic,{ev:"lablv",score:0,ans:k}); }
+      if(!isT()) return; /* students' sets are auto-assigned and locked; only the teacher's in-memory preview can switch sets */
+      TLV[topic]=k;
       const pick=document.querySelector(".lx-pick"); if(pick) pick.outerHTML=labPick(topic,P.s.lab,k);
       const w=document.querySelector(".lx-setwrap"); if(w){ w.innerHTML=labSetHTML(topic,P.s.lab,k); if(lxl.closest(".lx-next")) w.scrollIntoView({behavior:RM?"auto":"smooth",block:"start"}); } return; }
     const lxs=t.closest(".lx-task [data-run-sol]"); if(lxs&&!isT()){ const card=lxs.closest(".lx-task"), topic=(document.getElementById("tcStage")||{dataset:{}}).dataset.topic, key=card.dataset.lxk;
