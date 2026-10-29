@@ -893,9 +893,21 @@ const IC = {
   moonCrescent:'<svg class="ic-cosmic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M15.5 3A9 9 0 1 0 15.5 21 10.5 10.5 0 0 1 15.5 3z"/></svg>'
 };
 
-/* Students see only their own course; the teacher sees everything. */
+/* Students see only their own course; the teacher sees everything —
+   except a "demo" teacher PIN (see DEMO_PIN in the Apps Script), who is
+   scoped to the Biology demo subject only, same as a student's scoping below. */
 (function(){ try{
   var teacher = sessionStorage.getItem("dc-tmode")==="1";
+  if(teacher && store.get("dc-demo",false)===true){
+    var keepD = COURSES.filter(function(c){ return c.subjectId==="bio"; });
+    if(keepD.length){
+      COURSES.length = 0; keepD.forEach(function(c){ COURSES.push(c); });
+      for(var j=SUBJECTS.length-1;j>=0;j--) if(SUBJECTS[j].id!=="bio") SUBJECTS.splice(j,1);
+      window.DC_SCOPE = keepD[0].id;
+      window.DC_DEMO = true;
+    }
+    return;
+  }
   var me = JSON.parse(localStorage.getItem("dc-me")||"null");
   if(teacher || !me || !me.cls || !me.sub) return;
   var sid = me.sub==="Informatics Practices" ? "ip" : "cs";
@@ -2581,7 +2593,7 @@ const CLS = (()=>{
     const host=$("content");
     if(v.name==="courses"){ const m=me(), first=host.querySelector(".hero2")||host.firstElementChild, hs=(m&&m.name&&first)?first:(host.querySelector(".modes")||host.querySelector(".hstrip")); if(hs) hs.insertAdjacentHTML("beforebegin", joinCard("home")); }
     if(v.name==="me"){ const pp=host.querySelector(".pp2, .pp"); if(pp) pp.insertAdjacentHTML("beforebegin", classPanel()); }
-    if(v.name==="teacher"){ const w=host.querySelector(".teacher-v .th-go")||host.querySelector(".teacher-v .hub-head"); if(w) w.insertAdjacentHTML("afterend", teacherLive()); }
+    if(v.name==="teacher" && !window.DC_DEMO){ const w=host.querySelector(".teacher-v .th-go")||host.querySelector(".teacher-v .hub-head"); if(w) w.insertAdjacentHTML("afterend", teacherLive()); }
     host.querySelectorAll(".join.reveal,.myclass.reveal,.tlive").forEach(e=>e.classList.add("in"));
     const fbName=document.getElementById("fbName"); if(fbName&&me()&&!fbName.value) fbName.value=me().name+", Grade "+me().cls;
   };
@@ -4103,7 +4115,7 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
   // teacher mode survives a page reload on the teacher's own device
   if(EP && store.get(PINK,"") && sessionStorage.getItem("dc-tmode")==="1") signIn(store.get(PINK,"")).then(()=>{ if(view.name==="teach") rerender(); }).catch(()=>{});
   document.addEventListener("submit",e=>{ if(e.target.closest("[data-tc-in]")) sessionStorage.setItem("dc-tmode","1"); },true);
-  document.addEventListener("click",e=>{ if(e.target.closest("[data-tc-out]")) sessionStorage.removeItem("dc-tmode"); },true);
+  document.addEventListener("click",e=>{ if(e.target.closest("[data-tc-out]")){ sessionStorage.removeItem("dc-tmode"); try{ localStorage.removeItem("dc-demo"); }catch(err){} } },true);
   if(EP) refreshOpen(true);
   return { view, refreshOpen, isT };
 })();
