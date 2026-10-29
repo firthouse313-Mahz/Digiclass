@@ -4961,7 +4961,12 @@ INSERT INTO students VALUES (1,'Aisha','12Q',88),(2,'Rahul','12N',45),(3,'Sara',
      ===================================================================== */
   let lqView = null, lqRole = null, lqCode = null, lqPid = null, lqPoll = null;
   let lqPollT = null, lqLastAnswer = null, lqReactedQi = -1, lqEndedCelebrated = false;
-  const lqPost = (obj) => fetch(EP, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(obj) }).then(r => r.json());
+  // This module lives in a different top-level closure than TEACH, so it can't see
+  // TEACH's private EP/PINK/api -- these are local equivalents, built the same way.
+  const LQ_PINK = "dc-tpin";
+  const LQ_EP = (typeof DC_CLASS !== "undefined" && DC_CLASS.endpoint || "").trim();
+  const lqApi = (q) => fetch(`${LQ_EP}?${q}&t=${Date.now()}`).then(r => r.json());
+  const lqPost = (obj) => fetch(LQ_EP, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(obj) }).then(r => r.json());
   function lqRoot(){
     let el = document.getElementById("lq-root");
     if(!el){
@@ -4984,7 +4989,7 @@ INSERT INTO students VALUES (1,'Aisha','12Q',88),(2,'Rahul','12N',45),(3,'Sara',
     clearInterval(lqPollT);
     const tick = async () => {
       try{
-        const j = await api(`action=gpoll&code=${encodeURIComponent(lqCode||"")}&pid=${encodeURIComponent(lqPid||"")}`);
+        const j = await lqApi(`action=gpoll&code=${encodeURIComponent(lqCode||"")}&pid=${encodeURIComponent(lqPid||"")}`);
         if(j.error){ toast("Live quiz: "+j.error); lqClose(); lqDraw(); return; }
         lqPoll = j; lqDraw();
       }catch(err){}
@@ -5001,8 +5006,8 @@ INSERT INTO students VALUES (1,'Aisha','12Q',88),(2,'Rahul','12N',45),(3,'Sara',
       const qarr = (ch && quizOf(cid)) || [];
       if(!ch || !qarr.length){ toast("That chapter has no quiz questions yet."); return; }
       const qset = qarr.map(x => ({ q: x[0], o: x[1], a: x[2] }));
-      const pin = store.get(PINK, "");
-      if(!EP){ toast("Couldn't launch: no server address configured."); return; }
+      const pin = store.get(LQ_PINK, "");
+      if(!LQ_EP){ toast("Couldn't launch: no server address configured."); return; }
       const j = await lqPost({ kind: "glaunch", pin, subject: "Computer Science", title: ch.title, qSeconds: secs, qset });
       if(!j || j.error) throw new Error((j && j.error) === "pin" ? "Your teacher PIN can't launch a game." : (j && j.error) || "no response from the server");
       if(!j.code) throw new Error("the server didn't send back a game code -- is the Google Sheet script updated with the live-quiz actions?");
@@ -5014,19 +5019,19 @@ INSERT INTO students VALUES (1,'Aisha','12Q',88),(2,'Rahul','12N',45),(3,'Sara',
       const code = ((f.querySelector("[data-lq-code]") || {}).value || "").trim().toUpperCase();
       const name = ((f.querySelector("[data-lq-name]") || {}).value || "").trim();
       if(!code || !name){ toast("Enter the code and your name."); return; }
-      if(!EP){ toast("Couldn't join: no server address configured."); return; }
-      const j = await api(`action=gjoin&code=${encodeURIComponent(code)}&name=${encodeURIComponent(name)}`);
+      if(!LQ_EP){ toast("Couldn't join: no server address configured."); return; }
+      const j = await lqApi(`action=gjoin&code=${encodeURIComponent(code)}&name=${encodeURIComponent(name)}`);
       if(!j || j.error) throw new Error((j && j.error) === "started" ? "That quiz has already started." : (j && j.error) === "notfound" ? "No live quiz with that code." : (j && j.error) === "full" ? "That quiz is full." : (j && j.error) || "no response from the server");
       lqRole = "player"; lqCode = code; lqPid = j.pid; lqView = "play"; lqReactedQi = -1; lqLastAnswer = null;
       lqPollStart(); lqDraw();
     }catch(err){ toast("Couldn't join: " + (err && err.message || err)); }
   }
-  async function lqHostAction(a){ const pin = store.get(PINK, ""); try{ const j = await api(`action=${a}&pin=${encodeURIComponent(pin)}`); if(j.error) toast(j.error); }catch(err){} }
+  async function lqHostAction(a){ const pin = store.get(LQ_PINK, ""); try{ const j = await lqApi(`action=${a}&pin=${encodeURIComponent(pin)}`); if(j.error) toast(j.error); }catch(err){} }
   async function lqAnswer(choice){
     if(!lqPoll || !lqPoll.question || (lqPoll.me && lqPoll.me.answeredThis)) return;
     try{
       const qi = lqPoll.question.qi;
-      const j = await api(`action=ganswer&code=${encodeURIComponent(lqCode)}&pid=${encodeURIComponent(lqPid)}&qi=${qi}&choice=${choice}`);
+      const j = await lqApi(`action=ganswer&code=${encodeURIComponent(lqCode)}&pid=${encodeURIComponent(lqPid)}&qi=${qi}&choice=${choice}`);
       if(j.ok){ lqLastAnswer = Object.assign({}, j, { qi }); lqAvatarReact(j.correct); if(lqPoll.me) lqPoll.me.answeredThis = true; lqDraw(); }
       else if(j.error) toast(j.error === "already" ? "Already answered." : j.error === "stale" ? "Too slow -- next question's loading." : j.error);
     }catch(err){}
