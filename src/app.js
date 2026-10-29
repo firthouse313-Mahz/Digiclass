@@ -4993,18 +4993,21 @@ INSERT INTO students VALUES (1,'Aisha','12Q',88),(2,'Rahul','12N',45),(3,'Sara',
     lqPollT = setInterval(tick, 1500);
   }
   async function lqLaunch(f){
-    const cid = f.querySelector("[data-lq-chapter]").value;
-    const secs = Math.max(10, Math.min(40, +f.querySelector("[data-lq-secs]").value || 20));
-    const ch = CHBY[cid];
-    const qarr = (ch && quizOf(cid)) || [];
-    if(!ch || !qarr.length){ toast("That chapter has no quiz questions yet."); return; }
-    const qset = qarr.map(x => ({ q: x[0], o: x[1], a: x[2] }));
-    const pin = store.get(PINK, "");
     try{
+      const chapterSel = f.querySelector("[data-lq-chapter]");
+      const cid = chapterSel ? chapterSel.value : "";
+      const secs = Math.max(10, Math.min(40, +(f.querySelector("[data-lq-secs]") || {}).value || 20));
+      const ch = CHBY[cid];
+      const qarr = (ch && quizOf(cid)) || [];
+      if(!ch || !qarr.length){ toast("That chapter has no quiz questions yet."); return; }
+      const qset = qarr.map(x => ({ q: x[0], o: x[1], a: x[2] }));
+      const pin = store.get(PINK, "");
+      if(!EP){ toast("Couldn't launch: no server address configured."); return; }
       const j = await lqPost({ kind: "glaunch", pin, subject: "Computer Science", title: ch.title, qSeconds: secs, qset });
-      if(j.error) throw new Error(j.error === "pin" ? "Your teacher PIN can't launch a game." : j.error);
+      if(!j || j.error) throw new Error((j && j.error) === "pin" ? "Your teacher PIN can't launch a game." : (j && j.error) || "no response from the server");
+      if(!j.code) throw new Error("the server didn't send back a game code -- is the Google Sheet script updated with the live-quiz actions?");
       lqRole = "host"; lqCode = j.code; lqView = "host"; lqPollStart(); lqDraw();
-    }catch(err){ toast("Couldn't launch the quiz: " + (err.message || err)); }
+    }catch(err){ toast("Couldn't launch the quiz: " + (err && err.message || err)); }
   }
   async function lqJoin(f){
     const code = (f.querySelector("[data-lq-code]").value || "").trim().toUpperCase();
