@@ -3343,7 +3343,25 @@ html.dc-opening #dcGate::before{content:'Opening DigiClass…';position:fixed;in
     btn.disabled=false;
   });
   if(!window.crypto||!crypto.subtle||typeof DecompressionStream==="undefined"){ document.getElementById("dcgWait").textContent="Please update your browser (Chrome, Edge or Safari) to use DigiClass."; return; }
-  fillFromSaved(); ask();
+  // Stay logged in across reloads: if this device already has the site's
+  // key AND someone's identity saved (a student's dc-me, or a teacher's
+  // PIN), skip the code/name/PIN form entirely and reopen straight away.
+  // Only an explicit Log out (which clears dc-me) or Sign out of teacher
+  // mode (which clears dc-tpin) should bring the form back.
+  function hasIdentity(){
+    try{
+      if(localStorage.getItem("dc-tpin")) return true;
+      var me=JSON.parse(localStorage.getItem("dc-me")||"null");
+      return !!(me && me.name);
+    }catch(e){ return false; }
+  }
+  var savedKey=saved();
+  if(savedKey && hasIdentity()){
+    document.documentElement.classList.add("dc-opening");
+    open(savedKey).catch(function(){ fillFromSaved(); ask(); });
+  } else {
+    fillFromSaved(); ask();
+  }
 })();
 </script>
 
