@@ -2364,16 +2364,22 @@ const CLS = (()=>{
   window.addEventListener("pagehide", ()=>{ try{ const q=store.get(OB,[]); if(EP&&navigator.sendBeacon) q.slice(0,20).forEach(it=>navigator.sendBeacon(EP,new Blob([JSON.stringify(it.b)],{type:"text/plain;charset=utf-8"}))); }catch(e){} });
   setTimeout(flush, 3000+Math.random()*3000);
   function studentLogout(){
-    try{ localStorage.removeItem("dc-me"); sessionStorage.removeItem("dc-tmode"); sessionStorage.removeItem("dc-session"); }catch(err){}
+    try{ localStorage.removeItem("dc-me"); localStorage.removeItem("dc-seen"); sessionStorage.removeItem("dc-tmode"); sessionStorage.removeItem("dc-session"); }catch(err){}
     location.href = location.pathname;
   }
-  // A student's session also ends on its own after it sits unused for a while --
-  // the shell's own saved-session check (sessionStorage "dc-session") already ends
-  // it when the tab/window closes; this covers the tab being left open and idle.
-  // Teacher mode is exempt: her PIN is meant to stay remembered on her own device.
-  const IDLE_MS = 20 * 60 * 1000; // 20 minutes of no clicks/keys/touches/scrolling
-  let lastActive = Date.now();
-  ["mousedown","keydown","touchstart","scroll"].forEach(evt => window.addEventListener(evt, () => { lastActive = Date.now(); }, { passive: true }));
+  // A student's session ends on its own after 15 minutes unused, the same way the
+  // shell's own gate also treats a session as stale after 15 minutes (dc-seen) --
+  // kept in sync here so a tab left open and idle logs out without needing a
+  // reload. Teacher mode is exempt: her PIN stays remembered on her own device.
+  const IDLE_MS = 15 * 60 * 1000; // 15 minutes of no clicks/keys/touches/scrolling
+  let lastActive = Date.now(), lastSeenWrite = 0;
+  function touchSeen(){
+    lastActive = Date.now();
+    if(lastActive - lastSeenWrite < 10000) return; // don't hammer localStorage on every scroll tick
+    lastSeenWrite = lastActive;
+    try{ if(me() && sessionStorage.getItem("dc-tmode")!=="1") localStorage.setItem("dc-seen", String(lastActive)); }catch(err){}
+  }
+  ["mousedown","keydown","touchstart","scroll"].forEach(evt => window.addEventListener(evt, touchSeen, { passive: true }));
   setInterval(() => {
     if(sessionStorage.getItem("dc-tmode") === "1") return;
     if(!me()) return;

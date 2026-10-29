@@ -3334,6 +3334,7 @@ html.dc-opening #dcGate::before{content:'Opening DigiClass…';position:fixed;in
           if(jc.error==="busy"){ m.textContent="Too many wrong PIN tries for this name. Wait 10 minutes and try again."; btn.disabled=false; return; }
           if(!jc.ok){ m.textContent="Couldn't check your PIN. Check your internet and try again."; btn.disabled=false; return; }
           localStorage.setItem("dc-me",JSON.stringify({name:name,cls:cls,g:g,sub:sub,classId:secId,sid:jc.sid,pin:pin}));
+          localStorage.setItem("dc-seen",String(Date.now()));
           localStorage.setItem(SK,JSON.stringify({kid:KID,k:j.key})); sessionStorage.setItem("dc-login","1"); sessionStorage.setItem("dc-session","1");
         }catch(err){ m.textContent="Couldn't check your PIN. Check your internet and try again."; btn.disabled=false; return; }
         history.replaceState(null,"",location.pathname+location.search+"#/"); await open(j.key); return;
@@ -3345,21 +3346,28 @@ html.dc-opening #dcGate::before{content:'Opening DigiClass…';position:fixed;in
   if(!window.crypto||!crypto.subtle||typeof DecompressionStream==="undefined"){ document.getElementById("dcgWait").textContent="Please update your browser (Chrome, Edge or Safari) to use DigiClass."; return; }
   // Stay logged in across reloads, but not forever. A teacher's PIN is
   // remembered on her own device the way it always was -- reload never
-  // asks again. A student's login is a browser SESSION: reloading the
-  // page keeps them in (sessionStorage survives reloads), but closing the
-  // tab/window ends it, so the next person to open DigiClass has to log
-  // in again. A fixed idle timeout (handled once the app is open, in
-  // app.js) logs a student out the same way if the page just sits unused.
+  // asks again. A student's login is a browser SESSION (sessionStorage
+  // survives a reload but clears when the tab/window actually closes) --
+  // AND it also expires 15 minutes after the last time this device last
+  // touched DigiClass (dc-seen, refreshed while the app is open, in
+  // app.js). The two together mean: closing the tab asks again next time,
+  // and even a tab left open and merely minimised/backgrounded (where a
+  // browser can keep sessionStorage alive longer than you'd expect) still
+  // times out within 15 minutes, the way a banking or school portal does.
+  var SESSION_MS = 15*60*1000;
   function hasIdentity(){
     try{
       if(localStorage.getItem("dc-tpin")) return true;
       if(sessionStorage.getItem("dc-session")!=="1") return false;
       var me=JSON.parse(localStorage.getItem("dc-me")||"null");
-      return !!(me && me.name);
+      if(!(me && me.name)) return false;
+      var seen=+localStorage.getItem("dc-seen")||0;
+      return (Date.now()-seen)<SESSION_MS;
     }catch(e){ return false; }
   }
   var savedKey=saved();
   if(savedKey && hasIdentity()){
+    try{ localStorage.setItem("dc-seen",String(Date.now())); }catch(e){}
     document.documentElement.classList.add("dc-opening");
     open(savedKey).catch(function(){ fillFromSaved(); ask(); });
   } else {
