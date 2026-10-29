@@ -910,7 +910,7 @@ const IC = {
   }
   var me = JSON.parse(localStorage.getItem("dc-me")||"null");
   if(teacher || !me || !me.cls || !me.sub) return;
-  var sid = me.sub==="Informatics Practices" ? "ip" : "cs";
+  var sid = me.sub==="Informatics Practices" ? "ip" : me.sub==="Biology" ? "bio" : "cs";
   var keep = COURSES.filter(function(c){ return c.subjectId===sid && String(c.grade)===String(me.cls); });
   if(!keep.length) return;
   COURSES.length = 0; keep.forEach(function(c){ COURSES.push(c); });
@@ -2307,7 +2307,7 @@ const DC_CLASS = {
   endpoint: "https://script.google.com/macros/s/AKfycbzpEpFmRbIbacu4-BgICaT3ZN8TIwOgti8pT76gmNmftQbSbJoErzM86G4ikxHgZEfFcg/exec",
   classes: ["11","12"],
   genders: ["Boy","Girl"],
-  subjects: ["Computer Science","Informatics Practices"],
+  subjects: ["Computer Science","Informatics Practices","Biology"],
   // Each real class you teach: grade + section + subject, so two sections studying
   // the same lesson never share one live-results board.
   sections: [
@@ -2315,7 +2315,8 @@ const DC_CLASS = {
     {id:"12N-IP", cls:"12", sec:"N", sub:"Informatics Practices", label:"Grade 12 · N · Informatics Practices"},
     {id:"11N-IP", cls:"11", sec:"N", sub:"Informatics Practices", label:"Grade 11 · N · Informatics Practices"},
     {id:"11P-CS", cls:"11", sec:"P", sub:"Computer Science", label:"Grade 11 · P · Computer Science"},
-    {id:"11B-IP", cls:"11", sec:"B", sub:"Informatics Practices", label:"Grade 11 · B · Informatics Practices"}
+    {id:"11B-IP", cls:"11", sec:"B", sub:"Informatics Practices", label:"Grade 11 · B · Informatics Practices"},
+    {id:"12X-BIO", cls:"12", sec:"X", sub:"Biology", label:"Grade 12 · Biology (Demo)"}
   ]
 };
 
@@ -2440,7 +2441,7 @@ const CLS = (()=>{
     const fixC = r => (r && r.cls && /^1[12]\D/.test(String(r.cls)) ? Object.assign({}, r, {cls:String(r.cls).slice(0,2)}) : r);
     const AA = (TD.activity||[]).map(fixC), FF = (TD.feedback||[]).filter(f=>f.type!=="group").map(fixC);
     const now=Date.now(), dayMs=864e5;
-    const SUBS = {"Computer Science":"CS","Informatics Practices":"IP"};
+    const SUBS = {"Computer Science":"CS","Informatics Practices":"IP","Biology":"BIO"};
     const short = s => SUBS[s]||s||"";
     const keyOf = r => r.sid || (r.name+"|"+r.cls);
     // students
@@ -2882,7 +2883,8 @@ const ASK = (()=>{
     const me=store.get("dc-me",null)||{};
     const cs=["What is a primary key?","list vs tuple","How does a stack work?","What does seek() do?","WHERE vs HAVING","Star topology"];
     const ip=["How do head() and tail() work?","loc vs iloc","What is a primary key?","How to save a chart?","WHERE vs HAVING","What is a digital footprint?"];
-    return me.sub==="Informatics Practices"?ip:me.sub==="Computer Science"?cs:["What is a primary key?","loc vs iloc","list vs tuple","How does a stack work?","WHERE vs HAVING","How to read a CSV file?"];
+    const bio=["What is a retrovirus?","How does HIV destroy helper T-cells?","How does HIV spread?","What does the ELISA test check?","Why is there no HIV vaccine yet?","What are opportunistic infections?"];
+    return me.sub==="Informatics Practices"?ip:me.sub==="Computer Science"?cs:me.sub==="Biology"?bio:["What is a primary key?","loc vs iloc","list vs tuple","How does a stack work?","WHERE vs HAVING","How to read a CSV file?"];
   }
   function ensure(){
     if(document.getElementById("akPanel")) return;

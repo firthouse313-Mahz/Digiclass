@@ -3123,7 +3123,7 @@ body.present #dc-tmr .dcq-tm{font-size:3rem}
       <input id="dcgN" name="nm" maxlength="40" autocomplete="off" placeholder="e.g. Aisha Rahman">
       <small id="dcgNotMe" class="lp-notme" hidden>Not you? <a href="#" id="dcgClearMe">Clear this name and use your own</a></small>
       <label for="dcgSEC">My class</label>
-      <select name="sec" id="dcgSEC"><option value="">Choose…</option><option value="12Q-CS">Grade 12 · Q · Computer Science</option><option value="12N-IP">Grade 12 · N · Informatics Practices</option><option value="11N-IP">Grade 11 · N · Informatics Practices</option><option value="11P-CS">Grade 11 · P · Computer Science</option><option value="11B-IP">Grade 11 · B · Informatics Practices</option></select>
+      <select name="sec" id="dcgSEC"><option value="">Choose…</option><option value="12Q-CS">Grade 12 · Q · Computer Science</option><option value="12N-IP">Grade 12 · N · Informatics Practices</option><option value="11N-IP">Grade 11 · N · Informatics Practices</option><option value="11P-CS">Grade 11 · P · Computer Science</option><option value="11B-IP">Grade 11 · B · Informatics Practices</option><option value="12X-BIO">Grade 12 · Biology (Demo)</option></select>
       <label for="dcgPS">Your PIN</label>
       <div class="lp-pinwrap">
         <input id="dcgPS" name="ps" type="password" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="Pick a 4+ digit PIN the first time">
@@ -3294,7 +3294,7 @@ html.dc-opening #dcGate::before{content:'Opening DigiClass…';position:fixed;in
       psEye.setAttribute("aria-label",show?"Hide PIN":"Show PIN");
     });
   }
-  var DG_SECTIONS={"12Q-CS":{cls:"12",sub:"Computer Science"},"12N-IP":{cls:"12",sub:"Informatics Practices"},"11N-IP":{cls:"11",sub:"Informatics Practices"},"11P-CS":{cls:"11",sub:"Computer Science"},"11B-IP":{cls:"11",sub:"Informatics Practices"}};
+  var DG_SECTIONS={"12Q-CS":{cls:"12",sub:"Computer Science"},"12N-IP":{cls:"12",sub:"Informatics Practices"},"11N-IP":{cls:"11",sub:"Informatics Practices"},"11P-CS":{cls:"11",sub:"Computer Science"},"11B-IP":{cls:"11",sub:"Informatics Practices"},"12X-BIO":{cls:"12",sub:"Biology"}};
   document.getElementById("dcgF").addEventListener("click",function(e){
     var b=e.target.closest("[data-lmode]"); if(!b) return; var f=this, md=b.dataset.lmode; f.dataset.mode=md;
     f.querySelectorAll("[data-lmode]").forEach(function(x){ x.classList.toggle("on",x===b); x.setAttribute("aria-selected",x===b?"true":"false"); });
