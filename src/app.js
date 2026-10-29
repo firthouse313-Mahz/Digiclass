@@ -4908,19 +4908,315 @@ INSERT INTO students VALUES (1,'Aisha','12Q',88),(2,'Rahul','12N',45),(3,'Sara',
       return `<section class="page dg-page"><h1 class="dg-h1">🎮 DigiGame</h1>
         <p class="dg-sub">Open DigiGame to your whole class for the day, no points needed. Show this code and read it out — any student can type it into their own locked DigiGame card to unlock it until midnight.</p>
         <button class="btn primary" data-dg-teacher-code>🎮 Show today's code</button>
-      </section>`;
+      </section>${lqHostEntryHTML()}`;
     }
     const m = (typeof CLS !== "undefined" && CLS.me) ? CLS.me() : null;
     if(!m){
-      return `<section class="page dg-page"><h1 class="dg-h1">🎮 DigiGame</h1><p class="dg-sub">Log in from Home first, then come back here to play.</p></section>`;
+      return `<section class="page dg-page"><h1 class="dg-h1">🎮 DigiGame</h1><p class="dg-sub">Log in from Home first, then come back here to play.</p></section>${lqJoinEntryHTML()}`;
     }
     return `<section class="page dg-page"><h1 class="dg-h1">🎮 DigiGame</h1>
       <p class="dg-sub">A coding playground just for you — solve challenges, earn points, unlock more.</p>
       ${dgCardHTML()}
-    </section>`;
+    </section>${lqJoinEntryHTML()}`;
   }
   window.vGame = vGame;
   window.dgUnlocked = function(){ return dgPts() >= PTS_NEEDED || dgRewardDayOn(); };
+
+  /* =====================================================================
+     LIVE QUIZ: a Kahoot/Gimkit-style live multiplayer round, launching
+     with the Computer Science question bank. The "live" sync is honest
+     polling against the same Google Sheet backend every ~1.5s (there is
+     no websocket here) -- plenty for a classroom round, not literal
+     real-time. 3D is real, procedural Three.js (loaded lazily from a CDN
+     only when this view opens) reacting to each student's own answers --
+     not a sculpted character, a simple geometric "quiz-bot" that jumps,
+     spins and bursts particles on correct/incorrect. The host screen
+     stays a plain 2D control panel + leaderboard; the 3D payoff is on
+     the student's own screen, where it matters for engagement.
+     ===================================================================== */
+  let lqView = null, lqRole = null, lqCode = null, lqPid = null, lqPoll = null;
+  let lqPollT = null, lqLastAnswer = null, lqReactedQi = -1, lqEndedCelebrated = false;
+  const lqPost = (obj) => fetch(EP, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(obj) }).then(r => r.json());
+  function lqRoot(){
+    let el = document.getElementById("lq-root");
+    if(!el){
+      el = document.createElement("div"); el.id = "lq-root";
+      el.innerHTML = '<div id="lq-main"></div><div id="lq-avatar-wrap" data-lq-avatar hidden></div>';
+      document.body.appendChild(el);
+    }
+    return el;
+  }
+  const lqMain = () => lqRoot().querySelector("#lq-main");
+  const lqAvatarWrap = () => lqRoot().querySelector("#lq-avatar-wrap");
+  function lqClose(){
+    clearInterval(lqPollT); lqPollT = null;
+    lqView = null; lqRole = null; lqCode = null; lqPid = null; lqPoll = null;
+    lqLastAnswer = null; lqReactedQi = -1; lqEndedCelebrated = false;
+    lqThreeStop();
+    const el = document.getElementById("lq-root"); if(el) el.remove();
+  }
+  function lqPollStart(){
+    clearInterval(lqPollT);
+    const tick = async () => {
+      try{
+        const j = await api(`action=gpoll&code=${encodeURIComponent(lqCode||"")}&pid=${encodeURIComponent(lqPid||"")}`);
+        if(j.error){ toast("Live quiz: "+j.error); lqClose(); lqDraw(); return; }
+        lqPoll = j; lqDraw();
+      }catch(err){}
+    };
+    tick();
+    lqPollT = setInterval(tick, 1500);
+  }
+  async function lqLaunch(f){
+    const cid = f.querySelector("[data-lq-chapter]").value;
+    const secs = Math.max(10, Math.min(40, +f.querySelector("[data-lq-secs]").value || 20));
+    const ch = CHBY[cid];
+    const qarr = (ch && quizOf(cid)) || [];
+    if(!ch || !qarr.length){ toast("That chapter has no quiz questions yet."); return; }
+    const qset = qarr.map(x => ({ q: x[0], o: x[1], a: x[2] }));
+    const pin = store.get(PINK, "");
+    try{
+      const j = await lqPost({ kind: "glaunch", pin, subject: "Computer Science", title: ch.title, qSeconds: secs, qset });
+      if(j.error) throw new Error(j.error === "pin" ? "Your teacher PIN can't launch a game." : j.error);
+      lqRole = "host"; lqCode = j.code; lqView = "host"; lqPollStart(); lqDraw();
+    }catch(err){ toast("Couldn't launch the quiz: " + (err.message || err)); }
+  }
+  async function lqJoin(f){
+    const code = (f.querySelector("[data-lq-code]").value || "").trim().toUpperCase();
+    const name = (f.querySelector("[data-lq-name]").value || "").trim();
+    if(!code || !name){ toast("Enter the code and your name."); return; }
+    try{
+      const j = await api(`action=gjoin&code=${encodeURIComponent(code)}&name=${encodeURIComponent(name)}`);
+      if(j.error) throw new Error(j.error === "started" ? "That quiz has already started." : j.error === "notfound" ? "No live quiz with that code." : j.error === "full" ? "That quiz is full." : j.error);
+      lqRole = "player"; lqCode = code; lqPid = j.pid; lqView = "play"; lqReactedQi = -1; lqLastAnswer = null;
+      lqPollStart(); lqDraw();
+    }catch(err){ toast("Couldn't join: " + (err.message || err)); }
+  }
+  async function lqHostAction(a){ const pin = store.get(PINK, ""); try{ const j = await api(`action=${a}&pin=${encodeURIComponent(pin)}`); if(j.error) toast(j.error); }catch(err){} }
+  async function lqAnswer(choice){
+    if(!lqPoll || !lqPoll.question || (lqPoll.me && lqPoll.me.answeredThis)) return;
+    try{
+      const qi = lqPoll.question.qi;
+      const j = await api(`action=ganswer&code=${encodeURIComponent(lqCode)}&pid=${encodeURIComponent(lqPid)}&qi=${qi}&choice=${choice}`);
+      if(j.ok){ lqLastAnswer = Object.assign({}, j, { qi }); lqAvatarReact(j.correct); if(lqPoll.me) lqPoll.me.answeredThis = true; lqDraw(); }
+      else if(j.error) toast(j.error === "already" ? "Already answered." : j.error === "stale" ? "Too slow -- next question's loading." : j.error);
+    }catch(err){}
+  }
+
+  // ---- Three.js avatar: a lazily-loaded, procedurally built "quiz-bot" that
+  // reacts live on the student's own screen. No sculpted assets -- geometry only.
+  let lqThree = null, lqThreeLoading = null;
+  function lqLoadThree(){
+    if(window.THREE) return Promise.resolve();
+    if(lqThreeLoading) return lqThreeLoading;
+    lqThreeLoading = new Promise((res, rej) => {
+      const s = document.createElement("script");
+      s.src = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
+      s.onload = res; s.onerror = rej;
+      document.head.appendChild(s);
+    });
+    return lqThreeLoading;
+  }
+  function lqThreeStop(){
+    if(lqThree){ try{ cancelAnimationFrame(lqThree.raf); }catch(e){} try{ lqThree.renderer.dispose(); }catch(e){} lqThree = null; }
+  }
+  function lqColorFor(name){
+    const palette = [0x4f7cff, 0xf7670f, 0x34c759, 0xaf52de, 0xff9f0a, 0x0bd1c0];
+    let h = 0; for(let i = 0; i < (name || "").length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+    return palette[h % palette.length];
+  }
+  function lqEnsureAvatar(name){
+    const wrap = lqAvatarWrap();
+    if(lqThree && lqThree.mounted) return;
+    wrap.innerHTML = "";
+    const w = 220, h = 220;
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 100); camera.position.set(0, 1.2, 4.4);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(w, h); renderer.setClearColor(0x000000, 0);
+    wrap.appendChild(renderer.domElement);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.9); dir.position.set(2, 4, 3); scene.add(dir);
+    const grp = new THREE.Group();
+    const color = lqColorFor(name);
+    const body = new THREE.Mesh(new THREE.IcosahedronGeometry(0.95, 0), new THREE.MeshStandardMaterial({ color, flatShading: true }));
+    grp.add(body);
+    const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffffff }), pupilMat = new THREE.MeshStandardMaterial({ color: 0x111318 });
+    [[-0.33, 0.2, 0.78], [0.33, 0.2, 0.78]].forEach(p => {
+      const e = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 12), eyeMat); e.position.set(p[0], p[1], p[2]); grp.add(e);
+      const pu = new THREE.Mesh(new THREE.SphereGeometry(0.075, 8, 8), pupilMat); pu.position.set(p[0], p[1], p[2] + 0.1); grp.add(pu);
+    });
+    scene.add(grp);
+    const particles = [];
+    let t = 0, raf = null;
+    function tick(){
+      t += 0.016; grp.rotation.y = Math.sin(t * 0.6) * 0.22;
+      for(let i = particles.length - 1; i >= 0; i--){
+        const p = particles[i]; p.mesh.position.add(p.v); p.v.y -= 0.012; p.life -= 0.02;
+        p.mesh.material.opacity = Math.max(0, p.life);
+        if(p.life <= 0){ scene.remove(p.mesh); particles.splice(i, 1); }
+      }
+      renderer.render(scene, camera); raf = requestAnimationFrame(tick);
+    }
+    tick();
+    lqThree = { scene, camera, renderer, grp, particles, mounted: true, get raf(){ return raf; } };
+  }
+  function lqAvatarBurst(color){
+    if(!lqThree) return;
+    for(let i = 0; i < 16; i++){
+      const m = new THREE.Mesh(new THREE.TetrahedronGeometry(0.08), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1 }));
+      m.position.set(0, 0.3, 0);
+      const a = Math.random() * Math.PI * 2, s = 0.05 + Math.random() * 0.09;
+      const v = new THREE.Vector3(Math.cos(a) * s, 0.08 + Math.random() * 0.09, Math.sin(a) * s);
+      lqThree.scene.add(m); lqThree.particles.push({ mesh: m, v, life: 1 });
+    }
+  }
+  function lqAvatarReact(correct){
+    if(!lqThree) return;
+    const g = lqThree.grp;
+    if(correct){
+      lqAvatarBurst(0x34c759);
+      let s = 0; const anim = () => { s += 0.28; g.position.y = Math.max(0, Math.sin(s)) * 0.6; g.scale.setScalar(1 + Math.max(0, Math.sin(s)) * 0.15); if(s < Math.PI + 0.3) requestAnimationFrame(anim); else { g.position.y = 0; g.scale.setScalar(1); } };
+      anim();
+    } else {
+      lqAvatarBurst(0xff3b30);
+      let s = 0; const anim = () => { s += 0.3; const k = Math.max(0, 1 - s / 6); g.rotation.z = Math.sin(s) * 0.35 * k; g.position.y = -k * 0.15; if(s < 6) requestAnimationFrame(anim); else { g.rotation.z = 0; g.position.y = 0; } };
+      anim();
+    }
+  }
+  function lqMountAvatarIfNeeded(name){
+    const anchor = lqMain().querySelector("#lq-avatar-anchor");
+    const wrap = lqAvatarWrap();
+    if(!anchor){ wrap.hidden = true; document.body.appendChild(wrap); return; }
+    anchor.appendChild(wrap); wrap.hidden = false;
+    lqLoadThree().then(() => { if(window.THREE) lqEnsureAvatar(name); }).catch(() => {});
+  }
+
+  function lqSheet(title, inner, backAttr){
+    return `<div class="dg-modal" data-lq-close><div class="dg-sheet dg-sheet-wide" onclick="event.stopPropagation()">
+      <div class="dg-sheet-h">${backAttr?`<button class="dg-x" ${backAttr}>‹</button>`:"<span></span>"}<b>${esc(title)}</b><button class="dg-x" data-lq-close>×</button></div>
+      ${inner}
+    </div></div>`;
+  }
+  function lqHostEntryHTML(){
+    return `<section class="page dg-page" style="margin-top:18px"><h1 class="dg-h1">🎮 Live Quiz <small style="font-size:.6em;color:var(--soft)">(beta)</small></h1>
+      <p class="dg-sub">Launch a live, Gimkit/Kahoot-style multiplayer quiz round for your class from your Computer Science question bank. It syncs over the same Google Sheet as the rest of DigiClass (refreshing every ~1.5s), not a true real-time connection -- plenty for a live classroom round.</p>
+      <button class="btn primary" data-lq-host-open>🎮 Host a live quiz</button>
+    </section>`;
+  }
+  function lqJoinEntryHTML(){
+    return `<section class="page dg-page" style="margin-top:18px"><h1 class="dg-h1">🎮 Live Quiz <small style="font-size:.6em;color:var(--soft)">(beta)</small></h1>
+      <p class="dg-sub">Got a 4-letter code from your teacher? Join the live quiz round -- your own little 3D quiz-bot reacts as you answer.</p>
+      <button class="btn primary" data-lq-join-open>🎮 Join with a code</button>
+    </section>`;
+  }
+  function lqHostSetupHTML(){
+    const cs = COURSES.filter(c => c.subjectId === "cs");
+    const opts = [];
+    cs.forEach(c => (c.chapters || []).forEach(ch => { const n = ((c.quiz || {})[ch.id] || []).length; if(n) opts.push(`<option value="${esc(ch.id)}">${esc(c.short)} ${c.grade} · ${esc(ch.title)} (${n} Q)</option>`); }));
+    const body = opts.length
+      ? `<form data-lq-launch-form><label class="lq-field">Chapter<select data-lq-chapter required>${opts.join("")}</select></label>
+          <label class="lq-field" style="margin-top:10px">Seconds per question<input type="number" min="10" max="40" value="20" data-lq-secs></label>
+          <button class="btn primary" style="margin-top:14px" type="submit">🚀 Launch</button></form>`
+      : `<p class="dg-sub">No Computer Science chapters have quiz questions loaded yet.</p>`;
+    return lqSheet("Host a live quiz", body);
+  }
+  function lqHostHTML(){
+    if(!lqPoll) return lqSheet("Starting…", `<p class="dg-sub">Opening the game…</p>`, "data-lq-close");
+    const st = lqPoll.status;
+    const lb = (lqPoll.leaderboard || []).map((r, i) => `<div class="dg-item"><span>${["🥇","🥈","🥉"][i] || (i+1)+"."}</span>${esc(r.name)}<span>${r.score}</span></div>`).join("") || `<p class="dg-sub">Nobody has joined yet.</p>`;
+    if(st === "lobby"){
+      return lqSheet(lqPoll.title || "Lobby", `
+        <div class="dg-bigcode" style="font-size:2.4rem">${esc(lqCode)}</div>
+        <p class="dg-sub">${lqPoll.playerCount} player${lqPoll.playerCount===1?"":"s"} joined. Tell them to open Game → Join with a code.</p>
+        <div class="dg-list">${lb}</div>
+        <button class="btn primary" style="margin-top:14px" data-lq-next>▶ Start</button>`, "data-lq-back-setup");
+    }
+    if(st === "question"){
+      const q = lqPoll.question;
+      return lqSheet(`Question ${q.qi+1} / ${q.total}`, `
+        <p class="ls-q" style="font-weight:700">${esc(q.q)}</p>
+        <div class="dg-list">${q.o.map((o,i)=>`<div class="dg-item">${String.fromCharCode(65+i)}. ${esc(o)}</div>`).join("")}</div>
+        <p class="dg-sub">${lqPoll.playerCount} player${lqPoll.playerCount===1?"":"s"} in the game.</p>
+        <button class="btn primary" style="margin-top:10px" data-lq-reveal>👁 Reveal answer</button>`);
+    }
+    if(st === "reveal"){
+      const q = lqPoll.question;
+      const isLast = q.qi + 1 >= q.total;
+      return lqSheet(`Question ${q.qi+1} / ${q.total} -- Answer`, `
+        <div class="dg-list">${q.o.map((o,i)=>`<div class="dg-item ${i===q.a?"done":""}">${i===q.a?"✅ ":""}${String.fromCharCode(65+i)}. ${esc(o)}</div>`).join("")}</div>
+        <p class="dg-sub" style="margin-top:10px"><b>Leaderboard</b></p>
+        <div class="dg-list">${lb}</div>
+        <button class="btn primary" style="margin-top:10px" data-lq-${isLast?"end":"next"}>${isLast?"🏁 End game":"▶ Next question"}</button>`);
+    }
+    return lqSheet("Final results 🏁", `<div class="dg-list">${lb}</div><button class="btn primary" style="margin-top:14px" data-lq-close>Done</button>`);
+  }
+  function lqJoinFormHTML(){
+    const m = (typeof CLS !== "undefined" && CLS.me) ? CLS.me() : null;
+    return lqSheet("Join a live quiz", `<form data-lq-join-form>
+      <label class="lq-field">Game code<input data-lq-code maxlength="4" autocapitalize="characters" placeholder="ABCD" required style="text-transform:uppercase;font:800 1.4rem monospace;letter-spacing:.1em;text-align:center"></label>
+      <label class="lq-field" style="margin-top:10px">Your name<input data-lq-name maxlength="24" value="${esc((m&&m.name)||"")}" required placeholder="So the leaderboard knows you"></label>
+      <button class="btn primary" style="margin-top:14px" type="submit">Join 🎮</button></form>`);
+  }
+  function lqPlayHTML(){
+    if(!lqPoll) return lqSheet("Joining…", `<p class="dg-sub">Connecting…</p>`, "data-lq-close");
+    const st = lqPoll.status, me = lqPoll.me || {};
+    const avatar = `<div id="lq-avatar-anchor" style="display:flex;justify-content:center;margin:6px 0"></div>`;
+    const scoreLine = `<p class="dg-sub" style="text-align:center">Score <b>${me.score||0}</b> · Streak <b>${me.streak||0}</b>${me.rank?` · Rank <b>#${me.rank}</b>`:""}</p>`;
+    if(st === "lobby") return lqSheet(lqPoll.title || "Waiting room", `${avatar}<p class="dg-sub" style="text-align:center">You're in, ${esc(me.name||"")}! Waiting for the host to start… 🎉</p>${scoreLine}`, "data-lq-close");
+    if(st === "question"){
+      const q = lqPoll.question;
+      const mine = lqLastAnswer && lqLastAnswer.qi === q.qi ? lqLastAnswer : null;
+      if(me.answeredThis || mine){
+        return lqSheet(`Question ${q.qi+1} / ${q.total}`, `${avatar}<p class="dg-sub" style="text-align:center">${mine?(mine.correct?"✅ Nice -- locked in!":"Answer locked in."):"Answer locked in."}</p>${scoreLine}`);
+      }
+      return lqSheet(`Question ${q.qi+1} / ${q.total}`, `
+        <p class="ls-q" style="font-weight:700">${esc(q.q)}</p>
+        <div class="dg-list">${q.o.map((o,i)=>`<button class="dg-item" data-lq-choice="${i}" style="cursor:pointer">${String.fromCharCode(65+i)}. ${esc(o)}</button>`).join("")}</div>`);
+    }
+    if(st === "reveal"){
+      const q = lqPoll.question; const mine = lqLastAnswer && lqLastAnswer.qi === q.qi ? lqLastAnswer : null; const correct = mine ? mine.correct : null;
+      return lqSheet(`Question ${q.qi+1} / ${q.total} -- Answer`, `${avatar}
+        <div class="dg-list">${q.o.map((o,i)=>`<div class="dg-item ${i===q.a?"done":""}">${i===q.a?"✅ ":""}${String.fromCharCode(65+i)}. ${esc(o)}</div>`).join("")}</div>
+        <p class="dg-sub" style="text-align:center">${correct===true?"You got it! 🎉":correct===false?"Not this time.":"Answer revealed."}</p>${scoreLine}`);
+    }
+    const top3 = (lqPoll.leaderboard || []).slice(0, 3).map((r, i) => `<div class="dg-item">${["🥇","🥈","🥉"][i]}${esc(r.name)}<span>${r.score}</span></div>`).join("");
+    return lqSheet("Final results 🏁", `${avatar}<div class="dg-list">${top3}</div>${scoreLine}<button class="btn primary" style="margin-top:14px" data-lq-close>Done</button>`);
+  }
+  function lqDraw(){
+    if(!lqView){ const el = document.getElementById("lq-root"); if(el) el.remove(); return; }
+    lqRoot();
+    let html;
+    if(lqRole === "host") html = (lqView === "host-setup") ? lqHostSetupHTML() : lqHostHTML();
+    else html = (lqView === "join") ? lqJoinFormHTML() : lqPlayHTML();
+    lqMain().innerHTML = html;
+    if(lqRole === "player") lqMountAvatarIfNeeded((lqPoll && lqPoll.me && lqPoll.me.name) || "");
+    else { const wrap = lqAvatarWrap(); if(wrap){ wrap.hidden = true; document.body.appendChild(wrap); } }
+    if(lqRole === "player" && lqPoll && lqPoll.status === "reveal" && lqPoll.question && lqReactedQi !== lqPoll.question.qi){
+      lqReactedQi = lqPoll.question.qi;
+      const mine = lqLastAnswer && lqLastAnswer.qi === lqPoll.question.qi ? lqLastAnswer : null;
+      if(mine) setTimeout(() => lqAvatarReact(mine.correct), 60);
+    }
+    if(lqRole === "player" && lqPoll && lqPoll.status === "ended" && !lqEndedCelebrated){
+      lqEndedCelebrated = true;
+      if(lqPoll.me && lqPoll.me.rank && lqPoll.me.rank <= 3) setTimeout(() => lqAvatarReact(true), 200);
+    }
+  }
+  document.addEventListener("click", function(e){
+    if(e.target.closest("[data-lq-host-open]")){ lqRole = "host"; lqView = "host-setup"; lqDraw(); return; }
+    if(e.target.closest("[data-lq-join-open]")){ lqRole = "player"; lqView = "join"; lqDraw(); return; }
+    if(e.target.matches && e.target.matches("[data-lq-close]")){ lqClose(); return; }
+    if(e.target.closest("[data-lq-back-setup]")){ clearInterval(lqPollT); lqView = "host-setup"; lqPoll = null; lqCode = null; lqDraw(); return; }
+    if(e.target.closest("[data-lq-next]")){ lqHostAction("gnext"); return; }
+    if(e.target.closest("[data-lq-reveal]")){ lqHostAction("greveal"); return; }
+    if(e.target.closest("[data-lq-end]")){ lqHostAction("gend"); return; }
+    const ch = e.target.closest("[data-lq-choice]");
+    if(ch){ lqAnswer(+ch.dataset.lqChoice); return; }
+  });
+  document.addEventListener("submit", function(e){
+    const lf = e.target.closest("[data-lq-launch-form]"); if(lf){ e.preventDefault(); lqLaunch(lf); return; }
+    const jf = e.target.closest("[data-lq-join-form]"); if(jf){ e.preventDefault(); lqJoin(jf); return; }
+  });
 
   document.addEventListener("click", function(e){
     if(e.target.matches && e.target.matches("[data-dg-modal]")){ clearInterval(dgRushTimer); dgView = null; dgDraw(); return; }

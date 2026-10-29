@@ -96,6 +96,26 @@ function subjectTeacherFor_(p) {
 function topicInSubject_(topic, subjectId) {
   return String(topic || '').indexOf(String(subjectId || '\u0000')) === 0;
 }
+// DigiClass Live: one live multiplayer quiz game at a time, held in the cache (not a sheet --
+// it's a short-lived, single-class-period thing, and cache gives far more headroom than
+// PropertiesService for a whole class's worth of players and answers). Launching a new game
+// simply replaces whatever game was running before.
+function canHostGame_(p) {
+  return pinOk_(p) || !!subjectTeacherFor_(p);
+}
+function getGame_() {
+  const raw = CacheService.getScriptCache().get('GAME');
+  return raw ? JSON.parse(raw) : null;
+}
+function setGame_(g) {
+  CacheService.getScriptCache().put('GAME', JSON.stringify(g), 21600); // 6 hours, the cache's own max
+}
+function genCode_() {
+  const letters = 'ABCDEFGHJKMNPQRSTUVWXYZ'; // no I/L/O -- easy to misread off a board
+  let s = '';
+  for (let i = 0; i < 4; i++) s += letters.charAt(Math.floor(Math.random() * letters.length));
+  return s;
+}
 function norm_(s) {
   return String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
 }
@@ -131,7 +151,34 @@ function doPost(e) {
     if (uid && cache.get('u_' + uid)) return out_({ ok: true, dup: true });
     const lock = LockService.getScriptLock();
     lock.waitLock(25000);
-    if (d.kind === 'feedback') {
+    let resp = { ok: true };
+    if (d.kind === 'glaunch') {
+      // Launching a live quiz game. The question set itself lives only in the teacher's own
+      // (already-decrypted) browser -- this script has no other way to know question content --
+      // so the client sends it here as part of starting the game; the server just holds it for
+      // the game's lifetime and relays it to players.
+      const dIsTeacher = pinOk_(d);
+      const dSt = !dIsTeacher ? subjectTeacherFor_(d) : null;
+      const dCanLaunch = dIsTeacher || (dSt && dSt.subjectName === d.subject);
+      if (!dCanLaunch) {
+        resp = { error: 'pin' };
+      } else {
+        const qset = Array.isArray(d.qset) ? d.qset.slice(0, 20).map(function (x) {
+          return { q: clean_(x.q, 220), o: (x.o || []).slice(0, 4).map(function (s) { return clean_(s, 100); }), a: Number(x.a) || 0 };
+        }).filter(function (x) { return x.q && x.o.length >= 2; }) : [];
+        if (!qset.length) {
+          resp = { error: 'empty' };
+        } else {
+          const code = genCode_();
+          setGame_({
+            code: code, subject: clean_(d.subject, 30), title: clean_(d.title, 80), qset: qset,
+            qSeconds: Math.max(5, Math.min(60, Number(d.qSeconds) || 20)), status: 'lobby', qi: -1, qStart: 0,
+            players: {}, createdAt: Date.now()
+          });
+          resp = { ok: true, code: code };
+        }
+      }
+    } else if (d.kind === 'feedback') {
       sheet_(subjSheet_('Feedback', d.sub), FEEDBACK_HEADERS).appendRow([
         new Date(), clean_(d.name, 40), clean_(d.cls, 5), clean_(d.type, 20), clean_(d.reason, 40),
         clean_(d.message, 800), clean_(d.page, 100), clean_(d.ref, 60), clean_(d.sid, 12), clean_(d.g, 5), clean_(d.sub, 25)
@@ -144,7 +191,7 @@ function doPost(e) {
     }
     if (uid) cache.put('u_' + uid, '1', 21600);
     lock.releaseLock();
-    return out_({ ok: true });
+    return out_(resp);
   } catch (err) {
     return out_({ error: String(err) });
   }
@@ -222,6 +269,103 @@ function doGet(e) {
       return out_({ error: String(err) });
     }
   }
+  // DigiClass Live (a Kahoot/Gimkit-style live quiz): join and play are public, like the class
+  // code itself -- there's nothing sensitive in a join code or a game's live scoreboard.
+  if (a === 'gjoin') {
+    const code = String(p.code || '').trim().toUpperCase();
+    const name = clean_(p.name, 24).trim();
+    if (!name) return out_({ error: 'name' });
+    const lock = LockService.getScriptLock();
+    lock.waitLock(10000);
+    try {
+      const g = getGame_();
+      if (!g || g.code !== code) return out_({ error: 'notfound' });
+      if (g.status !== 'lobby') return out_({ error: 'started' });
+      if (Object.keys(g.players).length >= 80) return out_({ error: 'full' });
+      const pid = Utilities.getUuid().slice(0, 8);
+      g.players[pid] = { name: name, score: 0, streak: 0, answered: {} };
+      setGame_(g);
+      return out_({ ok: true, pid: pid, title: g.title });
+    } finally {
+      lock.releaseLock();
+    }
+  }
+  if (a === 'gpoll') {
+    const g = getGame_();
+    if (!g || g.code !== String(p.code || '').trim().toUpperCase()) return out_({ error: 'notfound' });
+    const pid = String(p.pid || '');
+    const me = g.players[pid] || null;
+    const ranked = Object.keys(g.players).map(function (k) { return { pid: k, name: g.players[k].name, score: g.players[k].score }; });
+    ranked.sort(function (x, y) { return y.score - x.score; });
+    const rank = me ? (ranked.findIndex(function (x) { return x.pid === pid; }) + 1) : 0;
+    let q = null;
+    if (g.qi >= 0 && g.qi < g.qset.length) {
+      const qq = g.qset[g.qi];
+      q = { qi: g.qi, q: qq.q, o: qq.o, total: g.qset.length };
+      if (g.status === 'reveal') q.a = qq.a;
+    }
+    return out_({
+      ok: true, status: g.status, title: g.title, qSeconds: g.qSeconds, qStart: g.qStart,
+      question: q, leaderboard: ranked.slice(0, 10), playerCount: ranked.length,
+      me: me ? { name: me.name, score: me.score, streak: me.streak, rank: rank, answeredThis: g.qi >= 0 && me.answered[g.qi] !== undefined } : null
+    });
+  }
+  if (a === 'ganswer') {
+    const lock = LockService.getScriptLock();
+    lock.waitLock(10000);
+    try {
+      const g = getGame_();
+      if (!g || g.code !== String(p.code || '').trim().toUpperCase()) return out_({ error: 'notfound' });
+      if (g.status !== 'question') return out_({ error: 'closed' });
+      const pid = String(p.pid || ''), qi = Number(p.qi);
+      const pl = g.players[pid];
+      if (!pl) return out_({ error: 'unknown player' });
+      if (qi !== g.qi) return out_({ error: 'stale' });
+      if (pl.answered[qi] !== undefined) return out_({ error: 'already' });
+      const choice = Number(p.choice);
+      const correct = choice === g.qset[qi].a;
+      const elapsed = Date.now() - g.qStart;
+      let pts = 0;
+      if (correct) {
+        pl.streak = (pl.streak || 0) + 1;
+        const speedBonus = Math.max(0, Math.round(500 * (1 - Math.min(elapsed, g.qSeconds * 1000) / (g.qSeconds * 1000))));
+        pts = 500 + speedBonus + Math.min(pl.streak - 1, 5) * 50;
+      } else {
+        pl.streak = 0;
+      }
+      pl.score = (pl.score || 0) + pts;
+      pl.answered[qi] = { c: choice, ok: correct, pts: pts };
+      setGame_(g);
+      return out_({ ok: true, correct: correct, points: pts, score: pl.score, streak: pl.streak });
+    } finally {
+      lock.releaseLock();
+    }
+  }
+  // Host controls: any valid teacher PIN (full or subject-scoped) can run the game -- there's
+  // only one at a time, so this mirrors the trust level the randomiser/open-topic actions use.
+  if (a === 'gnext' || a === 'greveal' || a === 'gend') {
+    if (!canHostGame_(p)) return out_({ error: 'pin' });
+    const lock = LockService.getScriptLock();
+    lock.waitLock(10000);
+    try {
+      const g = getGame_();
+      if (!g) return out_({ error: 'notfound' });
+      if (a === 'greveal') {
+        g.status = 'reveal';
+      } else if (a === 'gend') {
+        g.status = 'ended';
+      } else {
+        g.qi += 1;
+        if (g.qi >= g.qset.length) { g.status = 'ended'; }
+        else { g.status = 'question'; g.qStart = Date.now(); }
+      }
+      setGame_(g);
+      return out_({ ok: true, status: g.status, qi: g.qi });
+    } finally {
+      lock.releaseLock();
+    }
+  }
+
   if (a === '') return out_({ ok: true, app: 'DigiClass' });
 
   const isTeacher = pinOk_(p);
