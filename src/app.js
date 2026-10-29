@@ -3470,11 +3470,14 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
     else{ demo=(s.coop&&s.coop.task)||(s.practice&&s.practice[0]&&s.practice[0].q)||""; explainParts=explainChunks; }
     const rest=explainParts;
     const midArr = s.mids || (s.mid?[s.mid]:[]);
-    const actsByLevel={}; (s.acts||[]).forEach(a=>{ if(a&&a.level) actsByLevel[a.level]=a; });
     const oneLine = x => String(x||"").replace(/\s*\n+\s*/g," ").trim();
-    const extQ1 = oneLine((actsByLevel.stretch&&actsByLevel.stretch.task) || (s.hots&&s.hots.q) || "");
-    const extQ2 = oneLine((actsByLevel.challenge&&actsByLevel.challenge.task) || (s.challenge&&s.challenge.q) || "");
+    // Elaborate: every task DigiClass Teach itself offers for this topic (support/core/stretch/
+    // challenge -- same content as the in-app Elaborate board), just without the ability-tier
+    // labels. Up to 4 acts + 1 homework task fill the plan's 6 task boxes.
+    const acts4 = (s.acts||[]).slice(0,4);
     const hwText = oneLine((s.practice&&s.practice[1]&&s.practice[1].q) || (s.practice&&s.practice[0]&&s.practice[0].q) || "");
+    const groupsArr = (c.subjectId==="bio") ? GROUPS_BIO : GROUPS_CS;
+    const groupNames = groupsArr.map(g=>g[1]).join(", ");
     const topicTitle=secName(ch,i);
     const tags={
       SUBJECT_CODE: c.grade+lpSubjAbbr(c.subject),
@@ -3511,19 +3514,21 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
       MIDQ3: lpMcq("Q3", midArr[2]),
       MIDQ4: lpMcq("Q4", midArr[3]),
       MIDQ5: lpMcq("Q5", s.plenary),
-      GROUPS_LINE: "Groups: heterogeneous (mixed-ability) groups, seated together based on each student's Mid-plenary answer. As a group, students work through the task(s) below.",
-      ROLES_LINE: "Within each group: Reader, Writer, Checker, Reporter.",
+      GROUPS_LINE: "Groups: heterogeneous (mixed-ability) groups, seated together based on each student's Mid-plenary answer. Teacher sets how many groups to use that day (2-9) in DigiClass. DigiClass's named groups for this subject: "+groupNames+".",
+      ROLES_LINE: "Student: takes a role in the group (Reader, Writer, Checker, Reporter) and works through the tasks below together with the group. Teacher: circulates between groups to support, then calls a random number so any member can be asked to present.",
       EVALUATE_TITLE: "Exit ticket",
       EVALUATE_PROMPT: "Complete: \"One thing about "+topicTitle+" I can now apply: ______.\"",
       EVALUATE_SYNTHESIS: "Teacher reinforces: "+(t.notes||"the lesson's key idea against today's Learning Objective, and previews how it links to the next lesson."),
-      CH1_TITLE: extQ1?"Extended question 1":"", CH1_TIER: "",
-      CH1_TASK: extQ1, CH1_SKILLS: "",
-      CH2_TITLE: extQ2?"Extended question 2":"", CH2_TIER: "",
-      CH2_TASK: extQ2, CH2_SKILLS: "",
-      CH3_TITLE: hwText?"Homework":"", CH3_TIER: "",
-      CH3_TASK: hwText, CH3_SKILLS: "",
-      CH4_TITLE: "", CH4_TIER: "", CH4_TASK: "", CH4_SKILLS: "",
-      CH5_TITLE: "", CH5_TIER: "", CH5_TASK: "", CH5_SKILLS: "",
+      CH1_TITLE: acts4[0]?oneLine(acts4[0].title):"", CH1_TIER: "",
+      CH1_TASK: acts4[0]?oneLine(acts4[0].task):"", CH1_SKILLS: "",
+      CH2_TITLE: acts4[1]?oneLine(acts4[1].title):"", CH2_TIER: "",
+      CH2_TASK: acts4[1]?oneLine(acts4[1].task):"", CH2_SKILLS: "",
+      CH3_TITLE: acts4[2]?oneLine(acts4[2].title):"", CH3_TIER: "",
+      CH3_TASK: acts4[2]?oneLine(acts4[2].task):"", CH3_SKILLS: "",
+      CH4_TITLE: acts4[3]?oneLine(acts4[3].title):"", CH4_TIER: "",
+      CH4_TASK: acts4[3]?oneLine(acts4[3].task):"", CH4_SKILLS: "",
+      CH5_TITLE: hwText?"Homework":"", CH5_TIER: "",
+      CH5_TASK: hwText, CH5_SKILLS: "",
       CH6_TITLE: "", CH6_TIER: "", CH6_TASK: "", CH6_SKILLS: "",
       HOTQ_TEXT: s.hots?s.hots.q:"",
       HOTQ_ANSWER: t.hots_a?("(Output: "+t.hots_a+")"):"",
