@@ -19,14 +19,18 @@
 //    You type it on DigiClass's teacher pages.
 const TEACHER_PIN = 'CHANGE-ME';
 
-// 1b) OPTIONAL: a second, restricted PIN you can hand to another teacher so
-//     they can run ONLY the demo topic(s) listed in DEMO_TOPICS below —
-//     they get DigiClass Teach for those topics and nothing else: no access
-//     to your real classes, no student data/CSV/archive, no settings.
-//     Leave as 'CHANGE-ME-DEMO' (impossible to type by accident) if you
-//     don't want to hand out a demo PIN yet.
-const DEMO_PIN = 'CHANGE-ME-DEMO';
-const DEMO_TOPICS = ['bio12-health-disease@0'];
+// 1b) OPTIONAL, ERP-style: hand out a SEPARATE PIN per subject teacher. Each one
+//     can run DigiClass Teach, see live results and download CSV for ONLY their
+//     own subject's topics (any topic whose id starts with subjectId) -- they
+//     never see your other subjects' classes or student data, and can't touch
+//     archive or class-wide settings. You (TEACHER_PIN) keep full access to
+//     everything, and can add or remove rows here any time (no new deploy
+//     needed for students -- just Deploy a new version so the new PIN works).
+//     subjectId must match the start of that subject's topic ids (see KEYS
+//     below), e.g. Biology topics are "bio12-...", so subjectId is 'bio'.
+const SUBJECT_TEACHERS = [
+  // { pin: 'BIO-DEMO-2026', subjectId: 'bio', subjectName: 'Biology' },
+];
 
 // 2) CLASS CODE: give this to your students so they can open DigiClass.
 //    You can change it any time (then Deploy a new version). Students who
@@ -81,9 +85,16 @@ function num_(v) {
 function pinOk_(p) {
   return String(p.pin || '').trim() === String(TEACHER_PIN).trim();
 }
-function demoPinOk_(p) {
+function subjectTeacherFor_(p) {
   const v = String(p.pin || '').trim();
-  return !!v && v === String(DEMO_PIN).trim();
+  if (!v) return null;
+  for (let i = 0; i < SUBJECT_TEACHERS.length; i++) {
+    if (v === String(SUBJECT_TEACHERS[i].pin).trim()) return SUBJECT_TEACHERS[i];
+  }
+  return null;
+}
+function topicInSubject_(topic, subjectId) {
+  return String(topic || '').indexOf(String(subjectId || '\u0000')) === 0;
 }
 function norm_(s) {
   return String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -165,7 +176,10 @@ function doGet(e) {
     if (fails >= 30) return out_({ error: 'busy' });
     const c = String(p.code || '').trim().toUpperCase();
     if (c && pinOk_({ pin: p.code })) return out_({ ok: true, key: LEARN_KEY, teacher: true });
-    if (c && demoPinOk_({ pin: p.code })) return out_({ ok: true, key: LEARN_KEY, teacher: true, demo: true });
+    if (c) {
+      const st = subjectTeacherFor_({ pin: p.code });
+      if (st) return out_({ ok: true, key: LEARN_KEY, teacher: true, demoSubject: st.subjectId });
+    }
     if (c && c === String(CLASS_CODE).trim().toUpperCase()) return out_({ ok: true, key: LEARN_KEY });
     cache.put('learnFails', String(fails + 1), 600);
     return out_({ error: 'code' });
@@ -211,47 +225,63 @@ function doGet(e) {
   if (a === '') return out_({ ok: true, app: 'DigiClass' });
 
   const isTeacher = pinOk_(p);
-  const isDemo = !isTeacher && demoPinOk_(p);
-  if (!isTeacher && !isDemo) return out_({ error: 'pin' });
+  const st = !isTeacher ? subjectTeacherFor_(p) : null;
+  if (!isTeacher && !st) return out_({ error: 'pin' });
 
-  // Demo PIN: scoped to only the topic(s) in DEMO_TOPICS. No real class data,
-  // no settings that affect the whole class, no archive. Every action below
-  // either filters to DEMO_TOPICS or is refused outright.
-  if (isDemo) {
+  // Subject-scoped teacher PIN: full working access -- Teach, live results, CSV download,
+  // locking her own lessons -- but only for topics whose id starts with her subjectId, and
+  // never the whole-sheet operations (archive, the shared group-size setting).
+  if (st) {
     if (a === 'keys') {
       const keys = {};
-      DEMO_TOPICS.forEach(function (t) { if (KEYS[t]) keys[t] = KEYS[t]; });
-      return out_({ ok: true, keys: keys, open: openTopics_().filter(function (t) { return DEMO_TOPICS.indexOf(t) > -1; }) });
+      Object.keys(KEYS).forEach(function (t) { if (topicInSubject_(t, st.subjectId)) keys[t] = KEYS[t]; });
+      return out_({ ok: true, keys: keys, open: openTopics_().filter(function (t) { return topicInSubject_(t, st.subjectId); }) });
     }
     if (a === 'unlock' || a === 'lock') {
       const t = String(p.topic || '');
-      if (DEMO_TOPICS.indexOf(t) < 0 || !KEYS[t]) return out_({ error: 'not allowed for this PIN' });
+      if (!topicInSubject_(t, st.subjectId) || !KEYS[t]) return out_({ error: 'not allowed for this PIN' });
       let list = openTopics_().filter(function (x) { return x !== t; });
       if (a === 'unlock') list.push(t);
       setOpenTopics_(list);
-      return out_({ ok: true, open: list.filter(function (x) { return DEMO_TOPICS.indexOf(x) > -1; }) });
+      if (p.g) PropertiesService.getScriptProperties().setProperty('GROUPS', String(Math.max(2, Math.min(9, Number(p.g) || 6))));
+      return out_({ ok: true, open: list.filter(function (x) { return topicInSubject_(x, st.subjectId); }) });
     }
     if (a === 'call') {
       const t = String(p.topic || '');
-      if (DEMO_TOPICS.indexOf(t) < 0) return out_({ error: 'not allowed for this PIN' });
+      if (!topicInSubject_(t, st.subjectId)) return out_({ error: 'not allowed for this PIN' });
       const c = { topic: t.slice(0, 60), num: Number(p.num) || 0, g: String(p.g || '').slice(0, 30), ts: Date.now() };
       PropertiesService.getScriptProperties().setProperty('CALL', JSON.stringify(c));
       return out_({ ok: true, call: c });
     }
+    if (a === 'lockall') {
+      // Only close HER subject's open topics -- other subjects' live lessons keep running.
+      const list = openTopics_().filter(function (t) { return !topicInSubject_(t, st.subjectId); });
+      setOpenTopics_(list);
+      return out_({ ok: true, open: list });
+    }
     if (a === 'summary') {
       const t = String(p.topic || '');
-      if (DEMO_TOPICS.indexOf(t) < 0) return out_({ error: 'not allowed for this PIN' });
-      const act = rows_('Activity', ['ts', 'name', 'cls', 'event', 'course', 'chapter', 'score', 'total', 'sid', 'g', 'sub', 'ans'], 4000)
-        .filter(function (r) { return String(r.chapter) === t; });
-      const fb = rows_('Feedback', ['ts', 'name', 'cls', 'type', 'reason', 'message', 'page', 'ref', 'sid', 'g', 'sub'], 4000)
-        .filter(function (f) { const r = String(f.ref); return r === t || r.indexOf(t + '#') === 0; });
+      if (t) {
+        if (!topicInSubject_(t, st.subjectId)) return out_({ error: 'not allowed for this PIN' });
+        const act = rows_('Activity', ['ts', 'name', 'cls', 'event', 'course', 'chapter', 'score', 'total', 'sid', 'g', 'sub', 'ans'], 4000)
+          .filter(function (r) { return String(r.chapter) === t; });
+        const fb = rows_('Feedback', ['ts', 'name', 'cls', 'type', 'reason', 'message', 'page', 'ref', 'sid', 'g', 'sub'], 4000)
+          .filter(function (f) { const r = String(f.ref); return r === t || r.indexOf(t + '#') === 0; });
+        return out_({ activity: act, feedback: fb });
+      }
+      // No &topic=: the whole-class "My Class (live)" view -- filtered to her Subject column,
+      // so it covers every topic she's ever taught, past and future, without a fixed list.
+      const act = rows_('Activity', ['ts', 'name', 'cls', 'event', 'course', 'chapter', 'score', 'total', 'sid', 'g', 'sub', 'ans'], 0)
+        .filter(function (r) { return r.sub === st.subjectName; });
+      const fb = rows_('Feedback', ['ts', 'name', 'cls', 'type', 'reason', 'message', 'page', 'ref', 'sid', 'g', 'sub'], 0)
+        .filter(function (f) { return f.sub === st.subjectName; });
       return out_({ activity: act, feedback: fb });
     }
-    // groups / lockall / archive / anything else touch the whole class or whole sheet — blocked.
+    // archive, and the shared class-size ("groups" alone) setting, stay with you -- blocked.
     return out_({ error: 'not allowed for this PIN' });
   }
 
-  // Real teacher PIN: unchanged, full access.
+  // Full teacher PIN: unchanged, full access.
   if (a === 'keys') return out_({ ok: true, keys: KEYS, open: openTopics_() });
   if (a === 'unlock' || a === 'lock') {
     const t = String(p.topic || '');

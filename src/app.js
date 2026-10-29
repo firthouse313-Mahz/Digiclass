@@ -893,18 +893,22 @@ const IC = {
   moonCrescent:'<svg class="ic-cosmic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M15.5 3A9 9 0 1 0 15.5 21 10.5 10.5 0 0 1 15.5 3z"/></svg>'
 };
 
-/* Students see only their own course; the teacher sees everything —
-   except a "demo" teacher PIN (see DEMO_PIN in the Apps Script), who is
-   scoped to the Biology demo subject only, same as a student's scoping below. */
+/* Students see only their own course; the teacher sees everything -- except a
+   subject-scoped teacher PIN (see SUBJECT_TEACHERS in the Apps Script), who is
+   scoped to just that one subject (DigiClass Teach, live results, CSV),
+   same as a student's scoping below, so one Sheet/deployment can be shared
+   out to several subject teachers, "ERP"-style, while you keep full control. */
 (function(){ try{
   var teacher = sessionStorage.getItem("dc-tmode")==="1";
-  if(teacher && store.get("dc-demo",false)===true){
-    var keepD = COURSES.filter(function(c){ return c.subjectId==="bio"; });
+  var demoSubj = store.get("dc-demo-subject","");
+  if(teacher && demoSubj){
+    var keepD = COURSES.filter(function(c){ return c.subjectId===demoSubj; });
     if(keepD.length){
       COURSES.length = 0; keepD.forEach(function(c){ COURSES.push(c); });
-      for(var j=SUBJECTS.length-1;j>=0;j--) if(SUBJECTS[j].id!=="bio") SUBJECTS.splice(j,1);
+      for(var j=SUBJECTS.length-1;j>=0;j--) if(SUBJECTS[j].id!==demoSubj) SUBJECTS.splice(j,1);
       window.DC_SCOPE = keepD[0].id;
       window.DC_DEMO = true;
+      window.DC_DEMO_SUBJECT = demoSubj;
     }
     return;
   }
@@ -2319,6 +2323,15 @@ const DC_CLASS = {
     {id:"12X-BIO", cls:"12", sec:"X", sub:"Biology", label:"Grade 12 · Biology (Demo)"}
   ]
 };
+// Subject-scoped teacher (see SUBJECT_TEACHERS in the Apps Script): narrow "My Class (live)"'s
+// own subject/section lists to just her subject, same spirit as the COURSES/SUBJECTS scoping above.
+(function(){ try{
+  if(!window.DC_DEMO || !window.DC_DEMO_SUBJECT) return;
+  var subjName = (SUBJ[window.DC_DEMO_SUBJECT]&&SUBJ[window.DC_DEMO_SUBJECT].name) || "";
+  if(!subjName) return;
+  DC_CLASS.subjects = DC_CLASS.subjects.filter(function(s){ return s===subjName; });
+  DC_CLASS.sections = DC_CLASS.sections.filter(function(s){ return s.sub===subjName; });
+}catch(e){} })();
 
 const CLS = (()=>{
   const EP = DC_CLASS.endpoint.trim();
@@ -2542,7 +2555,7 @@ const CLS = (()=>{
     const about = f => { if(!f.ref) return f.page||""; const r=String(f.ref); if(r.includes("@")){ const [c,si]=r.split("@"), ch=CHBY[c]; return ch?(/^p\d+$/.test(String(si).split("#")[0])?`${ch.title}, Lab ${String(si).split("#")[0].slice(1)}`:`${ch.title}, topic ${ch.num?ch.num+"."+(+si+1):+si+1}`):r; } return (CHBY[r.split(":")[0]]||{}).title||r; };
     const fLabel = [cf&&("Grade "+cf), cidf&&((DC_CLASS.sections.find(x=>x.id===cidf)||{}).label), sf&&short(sf), chf&&(CHBY[chf]&&CHBY[chf].title)].filter(Boolean).join(" · ");
     TD._filtered = {A, label: fLabel};
-    return `<section class="tlive" id="tlive"><div class="tl-head"><h2 class="t-h">🏫 My Class (live)</h2><div class="tl-act"><button class="btn" data-trefresh>↻ Refresh</button><button class="btn" data-tcsv>⬇ Download CSV${fLabel?` <small>(${esc(fLabel)})</small>`:""}</button><button class="btn ghost" data-tarchive>📦 Archive old data</button><button class="btn ghost" data-dg-teacher-code>🎮 Reward day</button><button class="btn ghost" data-tlock>Lock</button></div></div>
+    return `<section class="tlive" id="tlive"><div class="tl-head"><h2 class="t-h">🏫 My Class (live)</h2><div class="tl-act"><button class="btn" data-trefresh>↻ Refresh</button><button class="btn" data-tcsv>⬇ Download CSV${fLabel?` <small>(${esc(fLabel)})</small>`:""}</button>${window.DC_DEMO?"":`<button class="btn ghost" data-tarchive>📦 Archive old data</button>`}<button class="btn ghost" data-dg-teacher-code>🎮 Reward day</button><button class="btn ghost" data-tlock>Lock</button></div></div>
       <div class="tfilters">${sel("data-tfilter","Grade",cf,[["","All grades"]].concat(grades.map(c=>[c,"Grade "+c])))}${sel("data-tsfilter","Subject",sf,[["","All subjects"]].concat(subjOpts.map(c=>[c,c])))}${sel("data-tcidfilter","My class",cidf,[["","All classes"]].concat(DC_CLASS.sections.map(c=>[c.id,c.label])))}${sel("data-tchfilter","Topic",chf,[["","All topics"]].concat(chapterOpts.map(id=>[id,CHBY[id].title+" ("+CHBY[id].course.short+" "+CHBY[id].course.grade+")"])))}</div>
       <p class="meta">The CSV button exports exactly the rows shown by your current Grade/Subject/My class/Topic filters above — pick one or more filters, then download, to get a class-wise or topic-wise CSV instead of everything mixed together.</p>
       ${statsHTML}
@@ -2594,7 +2607,7 @@ const CLS = (()=>{
     const host=$("content");
     if(v.name==="courses"){ const m=me(), first=host.querySelector(".hero2")||host.firstElementChild, hs=(m&&m.name&&first)?first:(host.querySelector(".modes")||host.querySelector(".hstrip")); if(hs) hs.insertAdjacentHTML("beforebegin", joinCard("home")); }
     if(v.name==="me"){ const pp=host.querySelector(".pp2, .pp"); if(pp) pp.insertAdjacentHTML("beforebegin", classPanel()); }
-    if(v.name==="teacher" && !window.DC_DEMO){ const w=host.querySelector(".teacher-v .th-go")||host.querySelector(".teacher-v .hub-head"); if(w) w.insertAdjacentHTML("afterend", teacherLive()); }
+    if(v.name==="teacher"){ const w=host.querySelector(".teacher-v .th-go")||host.querySelector(".teacher-v .hub-head"); if(w) w.insertAdjacentHTML("afterend", teacherLive()); }
     host.querySelectorAll(".join.reveal,.myclass.reveal,.tlive").forEach(e=>e.classList.add("in"));
     const fbName=document.getElementById("fbName"); if(fbName&&me()&&!fbName.value) fbName.value=me().name+", Grade "+me().cls;
   };
@@ -4131,7 +4144,7 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
   // teacher mode survives a page reload on the teacher's own device
   if(EP && store.get(PINK,"") && sessionStorage.getItem("dc-tmode")==="1") signIn(store.get(PINK,"")).then(()=>{ if(view.name==="teach") rerender(); }).catch(()=>{});
   document.addEventListener("submit",e=>{ if(e.target.closest("[data-tc-in]")) sessionStorage.setItem("dc-tmode","1"); },true);
-  document.addEventListener("click",e=>{ if(e.target.closest("[data-tc-out]")){ sessionStorage.removeItem("dc-tmode"); try{ localStorage.removeItem("dc-demo"); }catch(err){} } },true);
+  document.addEventListener("click",e=>{ if(e.target.closest("[data-tc-out]")){ sessionStorage.removeItem("dc-tmode"); try{ localStorage.removeItem("dc-demo-subject"); }catch(err){} } },true);
   if(EP) refreshOpen(true);
   return { view, refreshOpen, isT };
 })();

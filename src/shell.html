@@ -3316,7 +3316,7 @@ html.dc-opening #dcGate::before{content:'Opening DigiClass…';position:fixed;in
       if(j.key && tmode && !j.teacher){ m.textContent="That PIN isn't right."; btn.disabled=false; return; }
       if(j.key && j.teacher){
         try{ var tn=(document.getElementById("dcgTN").value||"").trim().slice(0,40); if(tn) localStorage.setItem("dc-tname",JSON.stringify(tn)); }catch(err){}
-        try{ localStorage.setItem(SK,JSON.stringify({kid:KID,k:j.key})); localStorage.setItem("dc-tpin",JSON.stringify(code)); sessionStorage.setItem("dc-tmode","1"); if(j.demo) localStorage.setItem("dc-demo",JSON.stringify(true)); else localStorage.removeItem("dc-demo"); }catch(err){}
+        try{ localStorage.setItem(SK,JSON.stringify({kid:KID,k:j.key})); localStorage.setItem("dc-tpin",JSON.stringify(code)); sessionStorage.setItem("dc-tmode","1"); if(j.demoSubject) localStorage.setItem("dc-demo-subject",JSON.stringify(j.demoSubject)); else localStorage.removeItem("dc-demo-subject"); }catch(err){}
         history.replaceState(null,"",location.pathname+location.search+"#/teacher"); await open(j.key); return;
       }
       if(j.key){
