@@ -3319,7 +3319,7 @@ html.dc-opening #dcGate::before{content:'Opening DigiClass…';position:fixed;in
       if(j.key && tmode && !j.teacher){ m.textContent="That PIN isn't right."; btn.disabled=false; return; }
       if(j.key && j.teacher){
         try{ var tn=(document.getElementById("dcgTN").value||"").trim().slice(0,40); if(tn) localStorage.setItem("dc-tname",JSON.stringify(tn)); }catch(err){}
-        try{ localStorage.setItem(SK,JSON.stringify({kid:KID,k:j.key})); localStorage.setItem("dc-tpin",JSON.stringify(code)); sessionStorage.setItem("dc-tmode","1"); if(j.demoSubject) localStorage.setItem("dc-demo-subject",JSON.stringify(j.demoSubject)); else localStorage.removeItem("dc-demo-subject"); }catch(err){}
+        try{ localStorage.setItem(SK,JSON.stringify({kid:KID,k:j.key})); localStorage.setItem("dc-tpin",JSON.stringify(code)); localStorage.setItem("dc-seen",String(Date.now())); sessionStorage.setItem("dc-tmode","1"); sessionStorage.setItem("dc-session","1"); if(j.demoSubject) localStorage.setItem("dc-demo-subject",JSON.stringify(j.demoSubject)); else localStorage.removeItem("dc-demo-subject"); }catch(err){}
         history.replaceState(null,"",location.pathname+location.search+"#/teacher"); await open(j.key); return;
       }
       if(j.key){
@@ -3344,25 +3344,24 @@ html.dc-opening #dcGate::before{content:'Opening DigiClass…';position:fixed;in
     btn.disabled=false;
   });
   if(!window.crypto||!crypto.subtle||typeof DecompressionStream==="undefined"){ document.getElementById("dcgWait").textContent="Please update your browser (Chrome, Edge or Safari) to use DigiClass."; return; }
-  // Stay logged in across reloads, but not forever. A teacher's PIN is
-  // remembered on her own device the way it always was -- reload never
-  // asks again. A student's login is a browser SESSION (sessionStorage
-  // survives a reload but clears when the tab/window actually closes) --
-  // AND it also expires 15 minutes after the last time this device last
-  // touched DigiClass (dc-seen, refreshed while the app is open, in
-  // app.js). The two together mean: closing the tab asks again next time,
-  // and even a tab left open and merely minimised/backgrounded (where a
-  // browser can keep sessionStorage alive longer than you'd expect) still
-  // times out within 15 minutes, the way a banking or school portal does.
+  // Stay logged in across reloads, but not forever -- for anyone, teacher
+  // included. It's a browser SESSION (sessionStorage survives a reload but
+  // clears when the tab/window actually closes) AND it also expires 15
+  // minutes after the last time this device touched DigiClass (dc-seen,
+  // refreshed while the app is open, in app.js). The two together mean:
+  // closing the tab asks again next time, and even a tab left open and
+  // merely minimised/backgrounded (where a browser can keep sessionStorage
+  // alive longer than you'd expect) still times out within 15 minutes, the
+  // way a banking or school portal does.
   var SESSION_MS = 15*60*1000;
   function hasIdentity(){
     try{
-      if(localStorage.getItem("dc-tpin")) return true;
       if(sessionStorage.getItem("dc-session")!=="1") return false;
-      var me=JSON.parse(localStorage.getItem("dc-me")||"null");
-      if(!(me && me.name)) return false;
       var seen=+localStorage.getItem("dc-seen")||0;
-      return (Date.now()-seen)<SESSION_MS;
+      if((Date.now()-seen)>=SESSION_MS) return false;
+      if(localStorage.getItem("dc-tpin")) return true;
+      var me=JSON.parse(localStorage.getItem("dc-me")||"null");
+      return !!(me && me.name);
     }catch(e){ return false; }
   }
   var savedKey=saved();
