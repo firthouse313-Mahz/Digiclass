@@ -5010,15 +5010,16 @@ INSERT INTO students VALUES (1,'Aisha','12Q',88),(2,'Rahul','12N',45),(3,'Sara',
     }catch(err){ toast("Couldn't launch the quiz: " + (err && err.message || err)); }
   }
   async function lqJoin(f){
-    const code = (f.querySelector("[data-lq-code]").value || "").trim().toUpperCase();
-    const name = (f.querySelector("[data-lq-name]").value || "").trim();
-    if(!code || !name){ toast("Enter the code and your name."); return; }
     try{
+      const code = ((f.querySelector("[data-lq-code]") || {}).value || "").trim().toUpperCase();
+      const name = ((f.querySelector("[data-lq-name]") || {}).value || "").trim();
+      if(!code || !name){ toast("Enter the code and your name."); return; }
+      if(!EP){ toast("Couldn't join: no server address configured."); return; }
       const j = await api(`action=gjoin&code=${encodeURIComponent(code)}&name=${encodeURIComponent(name)}`);
-      if(j.error) throw new Error(j.error === "started" ? "That quiz has already started." : j.error === "notfound" ? "No live quiz with that code." : j.error === "full" ? "That quiz is full." : j.error);
+      if(!j || j.error) throw new Error((j && j.error) === "started" ? "That quiz has already started." : (j && j.error) === "notfound" ? "No live quiz with that code." : (j && j.error) === "full" ? "That quiz is full." : (j && j.error) || "no response from the server");
       lqRole = "player"; lqCode = code; lqPid = j.pid; lqView = "play"; lqReactedQi = -1; lqLastAnswer = null;
       lqPollStart(); lqDraw();
-    }catch(err){ toast("Couldn't join: " + (err.message || err)); }
+    }catch(err){ toast("Couldn't join: " + (err && err.message || err)); }
   }
   async function lqHostAction(a){ const pin = store.get(PINK, ""); try{ const j = await api(`action=${a}&pin=${encodeURIComponent(pin)}`); if(j.error) toast(j.error); }catch(err){} }
   async function lqAnswer(choice){
@@ -5121,7 +5122,7 @@ INSERT INTO students VALUES (1,'Aisha','12Q',88),(2,'Rahul','12N',45),(3,'Sara',
   }
 
   function lqSheet(title, inner, backAttr){
-    return `<div class="dg-modal" data-lq-close><div class="dg-sheet dg-sheet-wide" onclick="event.stopPropagation()">
+    return `<div class="dg-modal" data-lq-close><div class="dg-sheet dg-sheet-wide">
       <div class="dg-sheet-h">${backAttr?`<button class="dg-x" ${backAttr}>‹</button>`:"<span></span>"}<b>${esc(title)}</b><button class="dg-x" data-lq-close>×</button></div>
       ${inner}
     </div></div>`;
@@ -5143,9 +5144,9 @@ INSERT INTO students VALUES (1,'Aisha','12Q',88),(2,'Rahul','12N',45),(3,'Sara',
     const opts = [];
     cs.forEach(c => (c.chapters || []).forEach(ch => { const n = ((c.quiz || {})[ch.id] || []).length; if(n) opts.push(`<option value="${esc(ch.id)}">${esc(c.short)} ${c.grade} · ${esc(ch.title)} (${n} Q)</option>`); }));
     const body = opts.length
-      ? `<form data-lq-launch-form><label class="lq-field">Chapter<select data-lq-chapter required>${opts.join("")}</select></label>
+      ? `<div data-lq-launch-box><label class="lq-field">Chapter<select data-lq-chapter>${opts.join("")}</select></label>
           <label class="lq-field" style="margin-top:10px">Seconds per question<input type="number" min="10" max="40" value="20" data-lq-secs></label>
-          <button class="btn primary" style="margin-top:14px" type="submit">🚀 Launch</button></form>`
+          <button class="btn primary" style="margin-top:14px" type="button" data-lq-launch>🚀 Launch</button></div>`
       : `<p class="dg-sub">No Computer Science chapters have quiz questions loaded yet.</p>`;
     return lqSheet("Host a live quiz", body);
   }
@@ -5181,10 +5182,10 @@ INSERT INTO students VALUES (1,'Aisha','12Q',88),(2,'Rahul','12N',45),(3,'Sara',
   }
   function lqJoinFormHTML(){
     const m = (typeof CLS !== "undefined" && CLS.me) ? CLS.me() : null;
-    return lqSheet("Join a live quiz", `<form data-lq-join-form>
-      <label class="lq-field">Game code<input data-lq-code maxlength="4" autocapitalize="characters" placeholder="ABCD" required style="text-transform:uppercase;font:800 1.4rem monospace;letter-spacing:.1em;text-align:center"></label>
-      <label class="lq-field" style="margin-top:10px">Your name<input data-lq-name maxlength="24" value="${esc((m&&m.name)||"")}" required placeholder="So the leaderboard knows you"></label>
-      <button class="btn primary" style="margin-top:14px" type="submit">Join 🎮</button></form>`);
+    return lqSheet("Join a live quiz", `<div data-lq-join-box>
+      <label class="lq-field">Game code<input data-lq-code maxlength="4" autocapitalize="characters" placeholder="ABCD" style="text-transform:uppercase;font:800 1.4rem monospace;letter-spacing:.1em;text-align:center"></label>
+      <label class="lq-field" style="margin-top:10px">Your name<input data-lq-name maxlength="24" value="${esc((m&&m.name)||"")}" placeholder="So the leaderboard knows you"></label>
+      <button class="btn primary" style="margin-top:14px" type="button" data-lq-joinbtn>Join 🎮</button></div>`);
   }
   function lqPlayHTML(){
     if(!lqPoll) return lqSheet("Joining…", `<p class="dg-sub">Connecting…</p>`, "data-lq-close");
@@ -5240,10 +5241,10 @@ INSERT INTO students VALUES (1,'Aisha','12Q',88),(2,'Rahul','12N',45),(3,'Sara',
     if(e.target.closest("[data-lq-end]")){ lqHostAction("gend"); return; }
     const ch = e.target.closest("[data-lq-choice]");
     if(ch){ lqAnswer(+ch.dataset.lqChoice); return; }
-  });
-  document.addEventListener("submit", function(e){
-    const lf = e.target.closest("[data-lq-launch-form]"); if(lf){ e.preventDefault(); lqLaunch(lf); return; }
-    const jf = e.target.closest("[data-lq-join-form]"); if(jf){ e.preventDefault(); lqJoin(jf); return; }
+    const lb = e.target.closest("[data-lq-launch]");
+    if(lb){ const box = lb.closest("[data-lq-launch-box]"); if(box) lqLaunch(box); return; }
+    const jb = e.target.closest("[data-lq-joinbtn]");
+    if(jb){ const box = jb.closest("[data-lq-join-box]"); if(box) lqJoin(box); return; }
   });
 
   document.addEventListener("click", function(e){
