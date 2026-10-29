@@ -32,6 +32,7 @@ import os
 import secrets
 import subprocess
 import sys
+from datetime import datetime, timezone
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -67,6 +68,17 @@ def build(verify=False):
             f"src/shell.html must contain the {{{{DCDATA}}}} placeholder exactly once, "
             f"found {shell.count('{{DCDATA}}')}."
         )
+    if shell.count("{{BUILD}}") != 1:
+        sys.exit(
+            f"src/shell.html must contain the {{{{BUILD}}}} placeholder exactly once, "
+            f"found {shell.count('{{BUILD}}')}."
+        )
+
+    # A fresh build stamp every build, so the page's own auto-update check (in
+    # shell.html) can actually tell a new deploy apart from the one it already
+    # has, and force a reload of any tab that's been left open since.
+    build_stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+    shell = shell.replace("{{BUILD}}", build_stamp)
 
     # Validate the source is syntactically correct JS before encrypting it.
     # This is the safety net the old workflow didn't have: a broken app.js
@@ -83,7 +95,7 @@ def build(verify=False):
 
     out_html = shell.replace("{{DCDATA}}", blob)
     open(OUT_HTML, "w", encoding="utf-8").write(out_html)
-    print(f"Built {OUT_HTML} ({len(out_html)} chars) from src/app.js ({len(app_js)} chars).")
+    print(f"Built {OUT_HTML} ({len(out_html)} chars) from src/app.js ({len(app_js)} chars). Build stamp: {build_stamp}")
 
     if verify:
         html2 = open(OUT_HTML, encoding="utf-8").read()
