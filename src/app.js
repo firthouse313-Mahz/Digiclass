@@ -2363,6 +2363,22 @@ const CLS = (()=>{
   // Closing the page: hand anything still waiting to the browser to deliver (repeats are ignored by the sheet).
   window.addEventListener("pagehide", ()=>{ try{ const q=store.get(OB,[]); if(EP&&navigator.sendBeacon) q.slice(0,20).forEach(it=>navigator.sendBeacon(EP,new Blob([JSON.stringify(it.b)],{type:"text/plain;charset=utf-8"}))); }catch(e){} });
   setTimeout(flush, 3000+Math.random()*3000);
+  function studentLogout(){
+    try{ localStorage.removeItem("dc-me"); sessionStorage.removeItem("dc-tmode"); sessionStorage.removeItem("dc-session"); }catch(err){}
+    location.href = location.pathname;
+  }
+  // A student's session also ends on its own after it sits unused for a while --
+  // the shell's own saved-session check (sessionStorage "dc-session") already ends
+  // it when the tab/window closes; this covers the tab being left open and idle.
+  // Teacher mode is exempt: her PIN is meant to stay remembered on her own device.
+  const IDLE_MS = 20 * 60 * 1000; // 20 minutes of no clicks/keys/touches/scrolling
+  let lastActive = Date.now();
+  ["mousedown","keydown","touchstart","scroll"].forEach(evt => window.addEventListener(evt, () => { lastActive = Date.now(); }, { passive: true }));
+  setInterval(() => {
+    if(sessionStorage.getItem("dc-tmode") === "1") return;
+    if(!me()) return;
+    if(Date.now() - lastActive >= IDLE_MS) studentLogout();
+  }, 30000);
   function send(event, data){
     const m = me(); if(!EP || !m) return;
     queue(Object.assign({ kind:"activity", ts:new Date().toISOString(), name:m.name, cls:m.cls, sid:m.sid, g:m.g||"", sub:m.sub||"", classId:m.classId||"", event }, data||{}));
@@ -2621,7 +2637,7 @@ const CLS = (()=>{
     if(d){ const id=d.dataset.done; setTimeout(()=>{ const ch=CHBY[id]; if(ch) send(done.has(id)?"done":"undone",{course:ch.course.id, chapter:id}); },0); }
     const ps=e.target.closest("[data-psubmit]");
     if(ps){ const cid=ps.dataset.psubmit; setTimeout(()=>{ const st=pState(cid); if(st.sub){ const sc=paperScore(cid), tot=flatQs(paperOf(cid)).reduce((n,q)=>n+q.m,0); once(`paper:${cid}:${st.start}`, ()=>send("paper",{course:cid, score:sc.got, total:tot})); } },50); }
-    if(e.target.closest("[data-logout]")){ try{ localStorage.removeItem("dc-me"); sessionStorage.removeItem("dc-tmode"); }catch(err){} location.href=location.pathname; return; }
+    if(e.target.closest("[data-logout]")){ studentLogout(); return; }
     if(e.target.closest("[data-leave]")){ if(confirm("Change your name or class on this device?")){ store.set(K.me,null); rerender(); } }
     if(e.target.closest("[data-trefresh]")){ loadTD(store.get(K.pin,""), err=>{ if(err) toast(err); else { toast("Updated ✓"); rerender(); } }); }
     if(e.target.closest("[data-tcsv]")) toCSV();

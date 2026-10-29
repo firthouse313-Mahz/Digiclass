@@ -3334,7 +3334,7 @@ html.dc-opening #dcGate::before{content:'Opening DigiClass…';position:fixed;in
           if(jc.error==="busy"){ m.textContent="Too many wrong PIN tries for this name. Wait 10 minutes and try again."; btn.disabled=false; return; }
           if(!jc.ok){ m.textContent="Couldn't check your PIN. Check your internet and try again."; btn.disabled=false; return; }
           localStorage.setItem("dc-me",JSON.stringify({name:name,cls:cls,g:g,sub:sub,classId:secId,sid:jc.sid,pin:pin}));
-          localStorage.setItem(SK,JSON.stringify({kid:KID,k:j.key})); sessionStorage.setItem("dc-login","1");
+          localStorage.setItem(SK,JSON.stringify({kid:KID,k:j.key})); sessionStorage.setItem("dc-login","1"); sessionStorage.setItem("dc-session","1");
         }catch(err){ m.textContent="Couldn't check your PIN. Check your internet and try again."; btn.disabled=false; return; }
         history.replaceState(null,"",location.pathname+location.search+"#/"); await open(j.key); return;
       }
@@ -3343,14 +3343,17 @@ html.dc-opening #dcGate::before{content:'Opening DigiClass…';position:fixed;in
     btn.disabled=false;
   });
   if(!window.crypto||!crypto.subtle||typeof DecompressionStream==="undefined"){ document.getElementById("dcgWait").textContent="Please update your browser (Chrome, Edge or Safari) to use DigiClass."; return; }
-  // Stay logged in across reloads: if this device already has the site's
-  // key AND someone's identity saved (a student's dc-me, or a teacher's
-  // PIN), skip the code/name/PIN form entirely and reopen straight away.
-  // Only an explicit Log out (which clears dc-me) or Sign out of teacher
-  // mode (which clears dc-tpin) should bring the form back.
+  // Stay logged in across reloads, but not forever. A teacher's PIN is
+  // remembered on her own device the way it always was -- reload never
+  // asks again. A student's login is a browser SESSION: reloading the
+  // page keeps them in (sessionStorage survives reloads), but closing the
+  // tab/window ends it, so the next person to open DigiClass has to log
+  // in again. A fixed idle timeout (handled once the app is open, in
+  // app.js) logs a student out the same way if the page just sits unused.
   function hasIdentity(){
     try{
       if(localStorage.getItem("dc-tpin")) return true;
+      if(sessionStorage.getItem("dc-session")!=="1") return false;
       var me=JSON.parse(localStorage.getItem("dc-me")||"null");
       return !!(me && me.name);
     }catch(e){ return false; }
