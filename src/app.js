@@ -4961,6 +4961,9 @@ INSERT INTO students VALUES (1,'Aisha','12Q',88),(2,'Rahul','12N',45),(3,'Sara',
      ===================================================================== */
   let lqView = null, lqRole = null, lqCode = null, lqPid = null, lqPoll = null;
   let lqPollT = null, lqLastAnswer = null, lqReactedQi = -1, lqEndedCelebrated = false;
+  // How far the student's runner has gotten: one correct answer = one step closer
+  // to the finish flag. Reset whenever a new game is joined.
+  let lqCorrectCount = 0, lqTotalQ = 0, lqFinishCelebrated = false;
   // This module lives in a different top-level closure than TEACH, so it can't see
   // TEACH's private EP/PINK/api -- these are local equivalents, built the same way.
   const LQ_PINK = "dc-tpin";
@@ -4982,6 +4985,7 @@ INSERT INTO students VALUES (1,'Aisha','12Q',88),(2,'Rahul','12N',45),(3,'Sara',
     clearInterval(lqPollT); lqPollT = null;
     lqView = null; lqRole = null; lqCode = null; lqPid = null; lqPoll = null;
     lqLastAnswer = null; lqReactedQi = -1; lqEndedCelebrated = false;
+    lqCorrectCount = 0; lqTotalQ = 0; lqFinishCelebrated = false;
     lqThreeStop();
     const el = document.getElementById("lq-root"); if(el) el.remove();
   }
@@ -4991,7 +4995,7 @@ INSERT INTO students VALUES (1,'Aisha','12Q',88),(2,'Rahul','12N',45),(3,'Sara',
       try{
         const j = await lqApi(`action=gpoll&code=${encodeURIComponent(lqCode||"")}&pid=${encodeURIComponent(lqPid||"")}`);
         if(j.error){ toast("Live quiz: "+j.error); lqClose(); lqDraw(); return; }
-        lqPoll = j; lqDraw();
+        lqPoll = j; if(j.question) lqTotalQ = j.question.total; lqDraw();
       }catch(err){}
     };
     tick();
@@ -5023,6 +5027,7 @@ INSERT INTO students VALUES (1,'Aisha','12Q',88),(2,'Rahul','12N',45),(3,'Sara',
       const j = await lqApi(`action=gjoin&code=${encodeURIComponent(code)}&name=${encodeURIComponent(name)}`);
       if(!j || j.error) throw new Error((j && j.error) === "started" ? "That quiz has already started." : (j && j.error) === "notfound" ? "No live quiz with that code." : (j && j.error) === "full" ? "That quiz is full." : (j && j.error) || "no response from the server");
       lqRole = "player"; lqCode = code; lqPid = j.pid; lqView = "play"; lqReactedQi = -1; lqLastAnswer = null;
+      lqCorrectCount = 0; lqTotalQ = 0; lqFinishCelebrated = false;
       lqPollStart(); lqDraw();
     }catch(err){ toast("Couldn't join: " + (err && err.message || err)); }
   }
@@ -5032,7 +5037,7 @@ INSERT INTO students VALUES (1,'Aisha','12Q',88),(2,'Rahul','12N',45),(3,'Sara',
     try{
       const qi = lqPoll.question.qi;
       const j = await lqApi(`action=ganswer&code=${encodeURIComponent(lqCode)}&pid=${encodeURIComponent(lqPid)}&qi=${qi}&choice=${choice}`);
-      if(j.ok){ lqLastAnswer = Object.assign({}, j, { qi }); lqAvatarReact(j.correct); if(lqPoll.me) lqPoll.me.answeredThis = true; lqDraw(); }
+      if(j.ok){ lqLastAnswer = Object.assign({}, j, { qi }); lqAvatarReact(j.correct); lqAdvanceProgress(j.correct); if(lqPoll.me) lqPoll.me.answeredThis = true; lqDraw(); }
       else if(j.error) toast(j.error === "already" ? "Already answered." : j.error === "stale" ? "Too slow -- next question's loading." : j.error);
     }catch(err){}
   }
@@ -5059,32 +5064,76 @@ INSERT INTO students VALUES (1,'Aisha','12Q',88),(2,'Rahul','12N',45),(3,'Sara',
     let h = 0; for(let i = 0; i < (name || "").length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
     return palette[h % palette.length];
   }
+  // The track: a fixed run from the runner (z=0) to a finish flag (z=-LQ_TRACK_LEN)
+  // that gets closer with every correct answer -- "run forward and win" made literal.
+  const LQ_TRACK_LEN = 18;
+  function lqRunnerFlagZ(){
+    const frac = lqTotalQ ? Math.min(1, lqCorrectCount / lqTotalQ) : 0;
+    return -LQ_TRACK_LEN * (1 - frac);
+  }
   function lqEnsureAvatar(name){
     const wrap = lqAvatarWrap();
     if(lqThree && lqThree.mounted) return;
     wrap.innerHTML = "";
-    const w = 220, h = 220;
+    const w = 320, h = 190;
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 100); camera.position.set(0, 1.2, 4.4);
+    scene.fog = new THREE.Fog(0xcfe8ff, 6, 20);
+    const camera = new THREE.PerspectiveCamera(50, w / h, 0.1, 100);
+    camera.position.set(0, 1.9, 3.6); camera.lookAt(0, 0.7, -3);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(w, h); renderer.setClearColor(0x000000, 0);
+    renderer.setSize(w, h); renderer.setClearColor(0xcfe8ff, 1);
     wrap.appendChild(renderer.domElement);
-    scene.add(new THREE.AmbientLight(0xffffff, 0.75));
-    const dir = new THREE.DirectionalLight(0xffffff, 0.9); dir.position.set(2, 4, 3); scene.add(dir);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.8); dir.position.set(2, 5, 2); scene.add(dir);
+
+    // Track surface + scrolling lane markers that loop back to the far end --
+    // cheap, but a convincing "you're running forward" cue.
+    const track = new THREE.Mesh(new THREE.PlaneGeometry(2.6, LQ_TRACK_LEN + 6), new THREE.MeshStandardMaterial({ color: 0xdce7f3 }));
+    track.rotation.x = -Math.PI / 2; track.position.set(0, 0, -(LQ_TRACK_LEN - 4) / 2);
+    scene.add(track);
+    const markers = [];
+    const MARK_GAP = 3, MARK_LOOP = MARK_GAP * 7;
+    for(let i = 0; i < 7; i++){
+      const m = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.03, 0.12), new THREE.MeshStandardMaterial({ color: 0xffffff }));
+      m.position.set(0, 0.02, -i * MARK_GAP);
+      scene.add(m); markers.push(m);
+    }
+
+    // Finish flag -- its distance from the runner shrinks with every correct answer.
+    const flag = new THREE.Group();
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.6, 6), new THREE.MeshStandardMaterial({ color: 0x8a8f98 }));
+    pole.position.y = 0.8; flag.add(pole);
+    const cloth = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.32), new THREE.MeshStandardMaterial({ color: 0xff3b30, side: THREE.DoubleSide }));
+    cloth.position.set(0.28, 1.4, 0); flag.add(cloth);
+    flag.position.set(0, 0, lqRunnerFlagZ());
+    scene.add(flag);
+
+    // The runner: a bright geometric "bot" with two legs that actually cycle.
     const grp = new THREE.Group();
     const color = lqColorFor(name);
-    const body = new THREE.Mesh(new THREE.IcosahedronGeometry(0.95, 0), new THREE.MeshStandardMaterial({ color, flatShading: true }));
-    grp.add(body);
+    const body = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42, 0), new THREE.MeshStandardMaterial({ color, flatShading: true }));
+    body.position.y = 0.72; grp.add(body);
     const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffffff }), pupilMat = new THREE.MeshStandardMaterial({ color: 0x111318 });
-    [[-0.33, 0.2, 0.78], [0.33, 0.2, 0.78]].forEach(p => {
-      const e = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 12), eyeMat); e.position.set(p[0], p[1], p[2]); grp.add(e);
-      const pu = new THREE.Mesh(new THREE.SphereGeometry(0.075, 8, 8), pupilMat); pu.position.set(p[0], p[1], p[2] + 0.1); grp.add(pu);
+    [[-0.16, 0.8, 0.36], [0.16, 0.8, 0.36]].forEach(p => {
+      const e = new THREE.Mesh(new THREE.SphereGeometry(0.075, 12, 12), eyeMat); e.position.set(p[0], p[1], p[2]); grp.add(e);
+      const pu = new THREE.Mesh(new THREE.SphereGeometry(0.038, 8, 8), pupilMat); pu.position.set(p[0], p[1], p[2] + 0.05); grp.add(pu);
     });
+    const legMat = new THREE.MeshStandardMaterial({ color: 0x2a2f3a });
+    const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.34, 6), legMat); legL.position.set(-0.16, 0.2, 0); grp.add(legL);
+    const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.34, 6), legMat); legR.position.set(0.16, 0.2, 0); grp.add(legR);
     scene.add(grp);
+
     const particles = [];
-    let t = 0, raf = null;
+    let t = 0, raf = null, boostUntil = 0, kick = 0;
     function tick(){
-      t += 0.016; grp.rotation.y = Math.sin(t * 0.6) * 0.22;
+      t += 0.016;
+      const boosting = performance.now() < boostUntil;
+      const speed = boosting ? 0.09 : 0.03;
+      markers.forEach(m => { m.position.z += speed; if(m.position.z > 1) m.position.z -= MARK_LOOP; });
+      const runT = t * (boosting ? 16 : 9);
+      legL.rotation.x = Math.sin(runT) * 0.7; legR.rotation.x = -Math.sin(runT) * 0.7;
+      grp.position.y = Math.abs(Math.sin(runT)) * 0.05;
+      if(kick > 0){ grp.position.z = Math.sin(Math.min(kick, 1) * Math.PI) * 0.22; kick -= 0.05; if(kick <= 0){ kick = 0; grp.position.z = 0; } }
       for(let i = particles.length - 1; i >= 0; i--){
         const p = particles[i]; p.mesh.position.add(p.v); p.v.y -= 0.012; p.life -= 0.02;
         p.mesh.material.opacity = Math.max(0, p.life);
@@ -5093,29 +5142,52 @@ INSERT INTO students VALUES (1,'Aisha','12Q',88),(2,'Rahul','12N',45),(3,'Sara',
       renderer.render(scene, camera); raf = requestAnimationFrame(tick);
     }
     tick();
-    lqThree = { scene, camera, renderer, grp, particles, mounted: true, get raf(){ return raf; } };
+    lqThree = {
+      scene, camera, renderer, grp, particles, flag, markers, mounted: true,
+      setBoost(ms){ boostUntil = performance.now() + ms; },
+      kickOff(){ kick = 1; },
+      get raf(){ return raf; }
+    };
   }
   function lqAvatarBurst(color){
     if(!lqThree) return;
     for(let i = 0; i < 16; i++){
-      const m = new THREE.Mesh(new THREE.TetrahedronGeometry(0.08), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1 }));
-      m.position.set(0, 0.3, 0);
-      const a = Math.random() * Math.PI * 2, s = 0.05 + Math.random() * 0.09;
-      const v = new THREE.Vector3(Math.cos(a) * s, 0.08 + Math.random() * 0.09, Math.sin(a) * s);
+      const m = new THREE.Mesh(new THREE.TetrahedronGeometry(0.05), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1 }));
+      m.position.set(lqThree.grp.position.x, 0.78, lqThree.grp.position.z);
+      const a = Math.random() * Math.PI * 2, s = 0.04 + Math.random() * 0.07;
+      const v = new THREE.Vector3(Math.cos(a) * s, 0.06 + Math.random() * 0.07, Math.sin(a) * s);
       lqThree.scene.add(m); lqThree.particles.push({ mesh: m, v, life: 1 });
     }
   }
   function lqAvatarReact(correct){
     if(!lqThree) return;
-    const g = lqThree.grp;
     if(correct){
       lqAvatarBurst(0x34c759);
-      let s = 0; const anim = () => { s += 0.28; g.position.y = Math.max(0, Math.sin(s)) * 0.6; g.scale.setScalar(1 + Math.max(0, Math.sin(s)) * 0.15); if(s < Math.PI + 0.3) requestAnimationFrame(anim); else { g.position.y = 0; g.scale.setScalar(1); } };
-      anim();
+      lqThree.setBoost(650);
+      lqThree.kickOff();
     } else {
       lqAvatarBurst(0xff3b30);
-      let s = 0; const anim = () => { s += 0.3; const k = Math.max(0, 1 - s / 6); g.rotation.z = Math.sin(s) * 0.35 * k; g.position.y = -k * 0.15; if(s < 6) requestAnimationFrame(anim); else { g.rotation.z = 0; g.position.y = 0; } };
+      const g = lqThree.grp;
+      let s = 0; const anim = () => { s += 0.3; const k = Math.max(0, 1 - s / 6); g.rotation.z = Math.sin(s) * 0.3 * k; if(s < 6) requestAnimationFrame(anim); else g.rotation.z = 0; };
       anim();
+    }
+  }
+  function lqRunnerSetFlag(){
+    if(lqThree && lqThree.flag) lqThree.flag.position.z = lqRunnerFlagZ();
+  }
+  function lqRunnerWin(){
+    if(!lqThree) return;
+    lqAvatarBurst(0xffd60a); lqAvatarBurst(0x34c759);
+    const g = lqThree.grp;
+    let s = 0; const anim = () => { s += 0.22; g.position.y = Math.max(0, Math.sin(s)) * 0.5; if(s < Math.PI * 2 + 0.3) requestAnimationFrame(anim); else g.position.y = 0; };
+    anim();
+  }
+  function lqAdvanceProgress(correct){
+    if(correct) lqCorrectCount++;
+    lqRunnerSetFlag();
+    if(correct && lqTotalQ && lqCorrectCount >= lqTotalQ && !lqFinishCelebrated){
+      lqFinishCelebrated = true;
+      setTimeout(() => { toast("🏁 You reached the finish line!"); lqRunnerWin(); }, 500);
     }
   }
   function lqMountAvatarIfNeeded(name){
@@ -5140,7 +5212,7 @@ INSERT INTO students VALUES (1,'Aisha','12Q',88),(2,'Rahul','12N',45),(3,'Sara',
   }
   function lqJoinEntryHTML(){
     return `<section class="page dg-page" style="margin-top:18px"><h1 class="dg-h1">🎮 Live Quiz <small style="font-size:.6em;color:var(--soft)">(beta)</small></h1>
-      <p class="dg-sub">Got a 4-letter code from your teacher? Join the live quiz round -- your own little 3D quiz-bot reacts as you answer.</p>
+      <p class="dg-sub">Got a 4-letter code from your teacher? Join the live quiz round -- your own 3D runner races down the track toward the finish flag, one step closer with every correct answer.</p>
       <button class="btn primary" data-lq-join-open>🎮 Join with a code</button>
     </section>`;
   }
@@ -5192,30 +5264,37 @@ INSERT INTO students VALUES (1,'Aisha','12Q',88),(2,'Rahul','12N',45),(3,'Sara',
       <label class="lq-field" style="margin-top:10px">Your name<input data-lq-name maxlength="24" value="${esc((m&&m.name)||"")}" placeholder="So the leaderboard knows you"></label>
       <button class="btn primary" style="margin-top:14px" type="button" data-lq-joinbtn>Join 🎮</button></div>`);
   }
+  function lqMeterHTML(){
+    if(!lqTotalQ) return "";
+    const pct = Math.round(100 * Math.min(1, lqCorrectCount / lqTotalQ));
+    return `<div class="lq-meter"><div class="lq-meter-fill" style="width:${pct}%"></div></div>
+      <p class="dg-sub" style="text-align:center;margin-top:4px">${lqCorrectCount}/${lqTotalQ} correct -- ${pct}% of the way to the finish flag 🏁</p>`;
+  }
   function lqPlayHTML(){
     if(!lqPoll) return lqSheet("Joining…", `<p class="dg-sub">Connecting…</p>`, "data-lq-close");
     const st = lqPoll.status, me = lqPoll.me || {};
     const avatar = `<div id="lq-avatar-anchor" style="display:flex;justify-content:center;margin:6px 0"></div>`;
+    const meter = lqMeterHTML();
     const scoreLine = `<p class="dg-sub" style="text-align:center">Score <b>${me.score||0}</b> · Streak <b>${me.streak||0}</b>${me.rank?` · Rank <b>#${me.rank}</b>`:""}</p>`;
     if(st === "lobby") return lqSheet(lqPoll.title || "Waiting room", `${avatar}<p class="dg-sub" style="text-align:center">You're in, ${esc(me.name||"")}! Waiting for the host to start… 🎉</p>${scoreLine}`, "data-lq-close");
     if(st === "question"){
       const q = lqPoll.question;
       const mine = lqLastAnswer && lqLastAnswer.qi === q.qi ? lqLastAnswer : null;
       if(me.answeredThis || mine){
-        return lqSheet(`Question ${q.qi+1} / ${q.total}`, `${avatar}<p class="dg-sub" style="text-align:center">${mine?(mine.correct?"✅ Nice -- locked in!":"Answer locked in."):"Answer locked in."}</p>${scoreLine}`);
+        return lqSheet(`Question ${q.qi+1} / ${q.total}`, `${avatar}${meter}<p class="dg-sub" style="text-align:center">${mine?(mine.correct?"✅ Nice -- run forward!":"Answer locked in."):"Answer locked in."}</p>${scoreLine}`);
       }
-      return lqSheet(`Question ${q.qi+1} / ${q.total}`, `
+      return lqSheet(`Question ${q.qi+1} / ${q.total}`, `${avatar}${meter}
         <p class="ls-q" style="font-weight:700">${esc(q.q)}</p>
         <div class="dg-list">${q.o.map((o,i)=>`<button class="dg-item" data-lq-choice="${i}" style="cursor:pointer">${String.fromCharCode(65+i)}. ${esc(o)}</button>`).join("")}</div>`);
     }
     if(st === "reveal"){
       const q = lqPoll.question; const mine = lqLastAnswer && lqLastAnswer.qi === q.qi ? lqLastAnswer : null; const correct = mine ? mine.correct : null;
-      return lqSheet(`Question ${q.qi+1} / ${q.total} -- Answer`, `${avatar}
+      return lqSheet(`Question ${q.qi+1} / ${q.total} -- Answer`, `${avatar}${meter}
         <div class="dg-list">${q.o.map((o,i)=>`<div class="dg-item ${i===q.a?"done":""}">${i===q.a?"✅ ":""}${String.fromCharCode(65+i)}. ${esc(o)}</div>`).join("")}</div>
-        <p class="dg-sub" style="text-align:center">${correct===true?"You got it! 🎉":correct===false?"Not this time.":"Answer revealed."}</p>${scoreLine}`);
+        <p class="dg-sub" style="text-align:center">${correct===true?"You got it -- run forward! 🏃":correct===false?"Not this time -- stay put.":"Answer revealed."}</p>${scoreLine}`);
     }
     const top3 = (lqPoll.leaderboard || []).slice(0, 3).map((r, i) => `<div class="dg-item">${["🥇","🥈","🥉"][i]}${esc(r.name)}<span>${r.score}</span></div>`).join("");
-    return lqSheet("Final results 🏁", `${avatar}<div class="dg-list">${top3}</div>${scoreLine}<button class="btn primary" style="margin-top:14px" data-lq-close>Done</button>`);
+    return lqSheet("Final results 🏁", `${avatar}${meter}<div class="dg-list">${top3}</div>${scoreLine}<button class="btn primary" style="margin-top:14px" data-lq-close>Done</button>`);
   }
   function lqDraw(){
     if(!lqView){ const el = document.getElementById("lq-root"); if(el) el.remove(); return; }
