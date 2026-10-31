@@ -1,0 +1,13 @@
+name = "digiclass-ai"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+[ai]
+binding = "AI"
+
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "digiclass-kb"
+
+# Set the real admin key as a secret, never here:
+#   npx wrangler secret put ADMIN_KEY

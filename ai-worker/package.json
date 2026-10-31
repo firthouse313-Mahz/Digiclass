@@ -1,0 +1,12 @@
+{
+  "name": "digiclass-ai",
+  "private": true,
+  "scripts": {
+    "build-kb": "node scripts/build_kb.js",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^3"
+  }
+}
