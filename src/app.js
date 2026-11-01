@@ -3440,12 +3440,12 @@ const TEACH = (()=>{
     ["Think, pair, share","30 seconds alone, 30 seconds comparing with a partner, then pairs share. Listen for pairs who changed their mind."],
     ["Show me in the app","Students answer in DigiClass; press 📊 Live results to see % correct and who needs help, by name."]];
   const HD = [["3","✅","Got it right"],["2","🟡","Partly"],["1","❌","Not yet"]];
-  const LAB_STAGES = [["starter",IC.rocket,"Starter",3],["explore",IC.comet,"Explore",3],["learn",IC.orbitRing,"Explain",4],["lab",IC.ufo,"Lab work",25],["exit",IC.starburst,"Plenary",5]];
-  const LAB_STAGES_MID = [["starter",IC.rocket,"Starter",3],["explore",IC.comet,"Explore",3],["learn",IC.orbitRing,"Explain",4],["mid",IC.satellite,"Mid-plenary",4],["lab",IC.ufo,"Lab work",25],["exit",IC.starburst,"Plenary",5]];
+  const LAB_STAGES = [["starter",IC.rocket,"Engage",2],["explore",IC.comet,"Explore",3],["learn",IC.orbitRing,"Explain",3],["lab",IC.ufo,"Elaborate",20],["exit",IC.starburst,"Plenary",5]];
+  const LAB_STAGES_MID = [["starter",IC.rocket,"Engage",2],["explore",IC.comet,"Explore",3],["learn",IC.orbitRing,"Explain",3],["mid",IC.satellite,"Mid-plenary",4],["lab",IC.ufo,"Elaborate",20],["exit",IC.starburst,"Plenary",5]];
   // Chapters whose practical (@p1/@p2) sessions include a Mid-plenary check-in after Explain.
   const MID_LAB_CHAPTERS = new Set(["ip11-sql","ip11-dictionaries","cs11-lists-tuples","cs11-dictionaries","sql","ip12-series","ip12-dataframe"]);
   const stg = topic => { const s=String(topic||""); if(!/@p\d+$/.test(s)) return STAGES; return MID_LAB_CHAPTERS.has(s.split("@")[0])?LAB_STAGES_MID:LAB_STAGES; };
-  const STAGES = [["starter",IC.rocket,"Engage",3],["explore",IC.comet,"Explore",5],["learn",IC.orbitRing,"Explain",8],["mid",IC.satellite,"Mid-plenary",5],["activity",IC.orbitRing2,"Elaborate",13],["evaluate",IC.spaceDie,"Evaluate",5],["exit",IC.starburst,"Plenary",5]];
+  const STAGES = [["starter",IC.rocket,"Engage",3],["explore",IC.comet,"Explore",5],["learn",IC.orbitRing,"Explain",7],["mid",IC.satellite,"Mid-plenary",3],["activity",IC.orbitRing2,"Elaborate",13],["evaluate",IC.spaceDie,"Evaluate",5],["exit",IC.starburst,"Plenary",3],["ticket",IC.check,"Exit ticket",3]];
   // The same two cooperative strategies in every lesson, so students know them well.
   const TPS = {name:"Think–Pair–Share", steps:[["🤔","Think","On your own, 1 minute. Work it out in your notebook."],["👥","Pair","Compare with your partner. Agree on one answer and why."],["📣","Share","Tap your answer. Be ready to explain it to the class."]]};
   const NHT = {name:"Numbered Heads Together", roles:[["1","Reader","Reads the task aloud and keeps the group on time."],["2","Solver","Writes the working in the notebook."],["3","Checker","Checks the answer against the task and the hint."],["4","Reporter","Types the group's answer and explains it if the teacher calls number 4."]], how:"Put your heads together and make sure EVERY member can explain the answer. Your teacher may call any number, so be ready."};
@@ -3662,7 +3662,7 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
   function qaNote(id){ return id?((store.get("dc-qa-notes",{})||{})[id]||""):""; }
   function qaNoteSet(id,v){ if(!id) return; const m=store.get("dc-qa-notes",{})||{}; if(v) m[id]=v; else delete m[id]; store.set("dc-qa-notes",m); }
   const qa = (x,lab,id) => `<div class="lp-q"><span class="lp-lv">${lab}</span><div class="lp-qb">${md(x.q)}${id&&!isT()?`<label class="qa-note-wrap">Your answer<textarea class="qa-note" data-qa-id="${esc(id)}" rows="3" placeholder="Type your answer here, then check below">${esc(qaNote(id))}</textarea></label>`:""}<details><summary>Show answer</summary><div class="page">${md(x.a)}</div></details></div></div>`;
-  const SC_OPEN={starter:1,learn:1,plenary:1,exit:1};
+  const SC_OPEN={starter:1,learn:1,plenary:1,exit:1,ticket:1};
   function scBar(S, stage){
     if(!S||!(S.objective||S.success)) return "";
     const n=(S.success||[]).length;
@@ -3913,14 +3913,16 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
           return `<div class="tc-stage"><h3>🔍 Explore <small>Run it, change it, notice what happens.</small></h3>
           <p class="act-intro">Work with your partner. <b>Predict first</b>, then run the code and try the changes below. Note what you find in your notebook.</p>
           <div class="page">${md(S.explore.task)}</div><div class="explore-code">${box}</div>
-          ${tnote("While they explore",`<p>Walk around. Ask pairs to explain one change they made and what happened. Pick two pairs to share at the start of Explain.</p>`)}</div>`; }
+          ${!isT()?hd("explore",topic,"Have you explored this?"):""}
+          ${tnote("While they explore",`<p>Walk around. Ask pairs to explain one change they made and what happened. Pick two pairs to share at the start of Explain.</p><p><b>AfL:</b> once a pair ticks ✅ “Have you explored this?” below their task, they're ready to move to Explain — press 📊 Live results to see who still hasn't ticked.</p>`)}</div>`; }
         const L2=(typeof LEARN2!=="undefined"&&LEARN2[ch.id]&&LEARN2[ch.id][i])||{}; let code="";
         if(L2.code&&L2.code.length&&typeof RUNNER!=="undefined"){ const t=L2.code[0], id=`${topic}:x0`; RUNNER.register(id,t); code=`<div class="explore-code"><b>💻 Try it: predict first, then run</b>${RUNNER.box(t,id)}</div>`; }
         return `<div class="tc-stage"><h3>🔍 Explore <small>Investigate with your partner before the explanation.</small></h3>
         <p class="act-intro">Work with your partner. Try it, make mistakes, notice patterns. <b>Write what you find in your notebook.</b> We'll check it together in Explain.</p>
         ${(S.practice||[])[0]?`<div class="explore-q">${qa(S.practice[0],"🔍 Investigate",`${topic}:explore`)}</div>`:""}
         ${code}
-        ${tnote("While they explore",(T.discuss?`<p><b>Ask pairs:</b> ${inline(T.discuss)}</p>`:"")+`<p>Walk around and listen. Pick two pairs with different ideas to share at the start of Explain. Students open “Show answer” only after they have tried.</p>`+(S.coop?`<details><summary>Optional extra pair task</summary>${md(S.coop.task)}</details>`:""))}</div>`; }
+        ${!isT()?hd("explore",topic,"Have you explored this?"):""}
+        ${tnote("While they explore",(T.discuss?`<p><b>Ask pairs:</b> ${inline(T.discuss)}</p>`:"")+`<p>Walk around and listen. Pick two pairs with different ideas to share at the start of Explain. Students open “Show answer” only after they have tried.</p><p><b>AfL:</b> once a pair ticks ✅ “Have you explored this?” below, they're ready to move on — press 📊 Live results to see who's done and who's still stuck (❌).</p>`+(S.coop?`<details><summary>Optional extra pair task</summary>${md(S.coop.task)}</details>`:""))}</div>`; }
       case "learn": return `<div class="tc-stage"><h3>📖 Explain <small>Now let's make sense of what you found.</small></h3>
         ${S.vocab?`<p class="tc-vocab"><b>Key words:</b> ${S.vocab.map(v=>`<span>${inline(v)}</span>`).join("")}</p>`:""}
         ${tnote("What to explain",T.explain?md(T.explain):"")}
@@ -3949,14 +3951,16 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
         <div class="gb-wrap">${isT()?`<button class="btn primary" data-gboard="${topic}">📋 Open the group answers board</button>`:`<h4 class="ex-h">📋 Group answers <small>Rate every group except your own</small></h4>`}<div id="gBoard"></div></div>
         </div>`;
       case "lab": return S.lab?labStage(topic,S,T):`<p class="meta">This lab has no lab sheet yet.</p>`;
-      case "exit": { const st=store.get("dc-lsn",{})[`${topic}:exit`]; return `<div class="tc-stage"><h3>🎟 Plenary <small>Plenary and exit ticket: be honest, your teacher uses this to plan the next lesson.</small></h3>
+      case "exit": return `<div class="tc-stage"><h3>🎟 Plenary <small>The one thing to remember from today.</small></h3>
         ${S.labx&&S.hots?`<div class="tc-link lx-think"><b>🧠 Think about it (class discussion)</b><div class="page">${md(S.hots.q)}</div>${isT()&&T.hots_a?`<details class="cb-ans"><summary>👩‍🏫 Model answer</summary><div class="page">${md(T.hots_a)}</div></details>`:""}</div>`:""}
         <div class="mid-q"><span class="mid-n">Plenary: the one thing to remember</span>${mcq("plenary",topic,S.plenary)}</div>
         ${tnote("Go back to the success criteria",`<p>Read each “I can…” statement aloud. Students tick themselves below. Ask one student who ticked “Yes, I can” to prove it with an example.</p>`+(T.notes?`<p>${inline(T.notes)}</p>`:""))}
-        ${scCheck(topic,S)}
+        ${scCheck(topic,S)}</div>`;
+      case "ticket": { const st=store.get("dc-lsn",{})[`${topic}:exit`]; return `<div class="tc-stage"><h3>🎟 Exit ticket <small>Be honest: your teacher uses this to plan the next lesson.</small></h3>
         <div class="ls-exit" data-ls-ch="${ch.id}" data-ls-i="${i}"><p class="ls-q"><b>Overall, how well do you understand ${label(ch,i)}?</b></p>
         <div class="ls-tl">${[["3","🟢","I understood it"],["2","🟡","Not sure yet"],["1","🔴","I need help"]].map(([v,ic,t])=>`<button data-tc-exit="${v}" class="${String(st)===v?"on":""}">${ic} ${t}</button>`).join("")}</div>
-        <form class="ls-note" data-tc-note><input maxlength="200" placeholder="One thing I learned, or one thing still unclear (optional)" aria-label="Exit ticket comment"><button class="btn" type="submit">Send</button></form></div></div>`; }
+        <form class="ls-note" data-tc-note><input maxlength="200" placeholder="One thing I learned, or one thing still unclear (optional)" aria-label="Exit ticket comment"><button class="btn" type="submit">Send</button></form></div>
+        ${tnote("Collecting exit tickets",`<p>Press 📊 Live results to see the 🟢🟡🔴 breakdown and every comment, so you know what to revisit next lesson.</p>`)}</div>`; }
     }
     return "";
   }
@@ -4017,6 +4021,7 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
     const ex=R.exit, g=ex.filter(r=>+r.score===3).length, y=ex.filter(r=>+r.score===2).length, r=ex.filter(r=>+r.score===1).length;
     box.innerHTML=`<section class="tc-results"><div class="tl-head"><h3>📊 Live results: ${esc(topic.replace(/@p(\d+)$/,": Lab $1").replace("@"," topic "))}</h3><span class="lr-auto">● updates every 12 s</span><button class="btn" data-tc-live="${topic}">↻ Refresh</button></div>
       ${row("🔥 Engage",R.starter,S&&S.starter)}${hdRow("🔥 Engage: how did you do?",R.hd.filter(r=>r.ans==="starter"))}
+      ${hdRow("🔍 Explore: have they explored it?",R.hd.filter(r=>r.ans==="explore"))}
       ${S&&S.labx?labLive(R,S):""}${S&&S.labx?"":S&&S.mids?S.mids.map((q,n)=>row(`⏸ Mid-plenary Q${n+1}`,[R.mid,R.mid2,R.mid3,R.mid4][n]||[],q)).join(""):row("⏸ Mid-plenary",R.mid,S&&S.mid)}${S&&S.labx?"":hdRow("⏸ Mid-plenary: how did you do?",R.hd.filter(r=>r.ans==="mid"))}
       ${S&&S.acts?(()=>{ const posted=new Set(R.posts.map(p=>p.reason+"|"+String(p.ref).split("#")[1])); const mk={}; R.gmk.forEach(r=>{ mk[r.ans]=+r.score; });
         const cell=(gi,n)=>{ const v=mk[`g${gi}a${n}`], p=posted.has(GROUPS[gi][1]+"|"+n); return v===3?`<td class="gs3">✅</td>`:v===2?`<td class="gs2">🟡</td>`:v===1?`<td class="gs1">❌</td>`:p?`<td class="gsp" title="Posted, not marked yet">📤</td>`:`<td class="gs0">·</td>`; };
