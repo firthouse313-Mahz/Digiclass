@@ -27,9 +27,9 @@ const TEACHER_PIN = 'CHANGE-ME';
 //     everything, and can add or remove rows here any time (no new deploy
 //     needed for students -- just Deploy a new version so the new PIN works).
 //     subjectId must match the start of that subject's topic ids (see KEYS
-//     below), e.g. Biology topics are "bio12-...", so subjectId is 'bio'.
+//     below), e.g. Informatics Practices topics are "ip11-...", so subjectId is 'ip'.
 const SUBJECT_TEACHERS = [
-  // { pin: 'BIO-DEMO-2026', subjectId: 'bio', subjectName: 'Biology' },
+  // { pin: 'IP-DEMO-2026', subjectId: 'ip', subjectName: 'Informatics Practices' },
 ];
 
 // 2) CLASS CODE: give this to your students so they can open DigiClass.

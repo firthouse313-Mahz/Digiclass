@@ -74,7 +74,7 @@ from that subject too, with no change to the retrieval or generation code.
   IT budget.
 - **Subject-agnostic by construction.** Retrieval and generation never
   mention Computer Science or Informatics Practices by name; everything
-  subject-specific lives in `kb.json`. The Biology course already stubbed
-  into `src/app.js` (`bio12`) demonstrates this: giving it real chapter
-  content and re-running the steps above is enough to make the AI tutor
-  answer Biology questions too.
+  subject-specific lives in `kb.json`. Adding another subject's chapters
+  to `src/app.js` the same way `cs11`/`ip11` are added, then re-running
+  the steps above, is enough to make the AI tutor answer that subject's
+  questions too.
