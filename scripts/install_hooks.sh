@@ -13,7 +13,13 @@ cat > "$HOOK" <<'EOF'
 # Auto-installed safety net -- see scripts/check_integrity.py for what this
 # checks and why. Blocks the commit if src/app.js or the build is broken.
 cd "$(git rev-parse --show-toplevel)" || exit 1
-python3 scripts/check_integrity.py
+python3 scripts/check_integrity.py || exit 1
+# check_integrity.py's last step (build.py --verify) rebuilds index.html
+# with a fresh random encryption IV, which happens AFTER `git add` staged
+# the old build. Without this, every commit leaves index.html dirty again
+# immediately after committing. Re-stage it so the commit captures the
+# build that was actually just verified.
+git add index.html
 EOF
 chmod +x "$HOOK"
 echo "Installed pre-commit hook at $HOOK"
