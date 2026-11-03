@@ -50,6 +50,22 @@ that showed teacher-only UI to students. `build.py` adds the syntax
 check and round-trip verification as a safety net, and `src/app.js`
 gives every future change a real, reviewable diff.
 
+### Pre-commit safety check
+
+`scripts/check_integrity.py` runs four checks before any commit --
+JS syntax, that `TEACH_ENC`'s 283 entries are all intact and
+well-formed, that `COURSES`/`SUBJECTS` are present with balanced
+braces, and the full `build.py --verify` round-trip. It's wired up as
+a git pre-commit hook, so it runs automatically and blocks the commit
+if anything's broken, with a message pointing at the cause.
+
+Git doesn't version `.git/hooks/`, so after a **fresh clone** run this
+once:
+
+```bash
+sh scripts/install_hooks.sh
+```
+
 ## What must never be committed
 
 This repo is **public**. These files contain real secrets and must stay
