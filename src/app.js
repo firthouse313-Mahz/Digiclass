@@ -4181,10 +4181,10 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
         ${tnote("While they explore",(T.discuss?`<p><b>Ask pairs:</b> ${inline(T.discuss)}</p>`:"")+`<p>Walk around and listen. Pick two pairs with different ideas to share at the start of Explain. Students open “Show answer” only after they have tried.</p><p><b>AfL:</b> once a pair ticks ✅ “Have you explored this?” below, they're ready to move on — press 📊 Live results to see who's done and who's still stuck (❌).</p>`+(S.coop?`<details><summary>Optional extra pair task</summary>${md(S.coop.task)}</details>`:""))}</div>`; }
       case "learn": { const vis=S.explore&&S.explore.model3d; return `<div class="tc-stage"><h3>📖 Explain <small>Now let's make sense of what you found.</small></h3>
         ${S.vocab?`<p class="tc-vocab"><b>Key words:</b> ${S.vocab.map(v=>`<span>${inline(v)}</span>`).join("")}</p>`:""}
-        ${tnote("What to explain",T.explain?md(T.explain):"")}
-        <div class="page tc-notes">${S.notes?md(S.notes):ch.sec[i][1].map(block).join("")}</div>
-        ${vis&&typeof VGRID!=="undefined"?VGRID.box(vis,"👁️ At a glance"):""}
+        ${tnote("What to explain",(T.explain?md(T.explain):"")+(vis?`<p>👁️ <b>Project the diagram below as you go</b> — point to each card instead of drawing it on the board.</p>`:""))}
+        ${vis&&typeof VGRID!=="undefined"?VGRID.box(vis,"👁️ At a glance — show this as you explain"):""}
         ${vis&&typeof MODEL3D!=="undefined"?`<p class="tc-vocab" style="margin-bottom:0"><b>🔄 Spin it as you explain</b></p>${MODEL3D.box(vis,`${topic}:learn`)}`:""}
+        <div class="page tc-notes">${S.notes?md(S.notes):ch.sec[i][1].map(block).join("")}</div>
         ${S.realworld?`<div class="tc-link rw"><b>🌍 Real-world example</b><p>${inline(S.realworld)}</p></div>`:""}
         ${S.uae?`<div class="tc-link uae"><b>🇦🇪 Link to UAE</b><p>${inline(S.uae)}</p></div>`:""}</div>`; }
       case "mid": { const Q=S.mids||[S.mid]; return `<div class="tc-stage"><h3>⏸ Mid-plenary <small>${Q.length} quick questions. Solve in your notebook, then answer here.</small></h3>
