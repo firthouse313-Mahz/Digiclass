@@ -1994,6 +1994,21 @@ body.sp-open .ak-fab{display:none}
 .selfmark button{border:1.5px solid var(--line2);background:var(--surface2);color:var(--ink);border-radius:999px;padding:5px 11px;font:700 .85rem "Inter",sans-serif;cursor:pointer}
 .selfmark button.on{border-color:var(--brand);background:var(--accent-bg)}
 
+/* ---------- 3D working model (pure CSS 3D, no network) ---------- */
+.m3d{margin:12px 0;padding:14px 12px 10px;border-radius:14px;background:var(--surface2);border:1px solid var(--line)}
+.m3d-stage{perspective:900px;height:200px;display:flex;align-items:center;justify-content:center}
+.m3d-ring{position:relative;width:212px;height:170px;transform-style:preserve-3d;transition:transform .7s cubic-bezier(.22,.9,.3,1)}
+.m3d-face{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;padding:14px;border-radius:16px;background:var(--surface);border:1px solid var(--line2);box-shadow:0 14px 34px -14px rgba(0,0,0,.45);backface-visibility:hidden}
+.m3d-face h4{margin:0;font-size:.95rem}
+.m3d-face p{margin:0;font-size:.78rem;color:var(--muted);line-height:1.3}
+.m3d-ico{font-size:1.9rem;line-height:1}
+.m3d-ctrl{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:8px}
+.m3d-dots{display:flex;gap:6px}
+.m3d-dot{width:8px;height:8px;border-radius:50%;border:0;padding:0;background:var(--line2);cursor:pointer}
+.m3d-dot.on{background:var(--brand)}
+.m3d-hint{margin:6px 0 0;text-align:center;font-size:.78rem;color:var(--muted)}
+@media (max-width:520px){.m3d-stage{height:230px}.m3d-ring{width:180px;height:200px}}
+
 /* ---------- code runner ---------- */
 .run{margin:12px 0;padding:12px;border-radius:14px;background:var(--surface2);border:1px solid var(--line)}
 .run-h{display:flex;justify-content:space-between;align-items:center;gap:8px}
