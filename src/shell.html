@@ -2009,6 +2009,18 @@ body.sp-open .ak-fab{display:none}
 .m3d-hint{margin:6px 0 0;text-align:center;font-size:.78rem;color:var(--muted)}
 @media (max-width:520px){.m3d-stage{height:230px}.m3d-ring{width:180px;height:200px}}
 
+/* ---------- static visual summary (image-style, no interaction) ---------- */
+.vgrid-wrap{margin:12px 0}
+.vgrid-title{margin:0 0 8px;font-weight:800;font-size:.9rem;color:var(--muted)}
+.vgrid{display:flex;flex-wrap:wrap;align-items:stretch;justify-content:center;gap:10px}
+.vgrid.flow{align-items:center}
+.vgrid-item{flex:1 1 150px;max-width:190px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;padding:14px 10px;border-radius:14px;background:var(--surface2);border:1px solid var(--line)}
+.vgrid-item h5{margin:0;font-size:.86rem}
+.vgrid-item p{margin:0;font-size:.74rem;color:var(--muted);line-height:1.3}
+.vgrid-ico{font-size:1.6rem;line-height:1}
+.vgrid-arrow{display:flex;align-items:center;justify-content:center;color:var(--brand);font-size:1.3rem;font-weight:800}
+@media (max-width:520px){.vgrid.flow{flex-direction:column}.vgrid.flow .vgrid-arrow{transform:rotate(90deg)}}
+
 /* ---------- code runner ---------- */
 .run{margin:12px 0;padding:12px;border-radius:14px;background:var(--surface2);border:1px solid var(--line)}
 .run-h{display:flex;justify-content:space-between;align-items:center;gap:8px}
