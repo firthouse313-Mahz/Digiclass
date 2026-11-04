@@ -3373,6 +3373,7 @@ html.dc-opening #dcGate::before{content:'Opening DigiClass…';position:fixed;in
     if(!code){ m.textContent=tmode?"Type your teacher PIN.":"Type the class code."; return; }
     if(tmode) name="";
     btn.disabled=true; m.textContent="Checking…";
+    var slowT=setTimeout(function(){ m.textContent="Still checking — this can take longer when lots of the class logs in at the same time. Hang tight…"; },4000);
     try{
       var j=await (await fetch(EP+"?action=learn&code="+encodeURIComponent(code)+"&t="+Date.now())).json();
       if(j.key && !j.teacher && !name){
@@ -3403,6 +3404,7 @@ html.dc-opening #dcGate::before{content:'Opening DigiClass…';position:fixed;in
       }
       m.textContent=j.error==="busy"?"Too many wrong tries. Wait 10 minutes and try again.":j.error==="code"?(tmode?"That PIN isn't right.":"That class code isn't right. Check it with your teacher."):"Your teacher needs to update the DigiClass Google Sheet script.";
     }catch(err){ m.textContent="Couldn't check the code. Check your internet and try again."; }
+    finally{ clearTimeout(slowT); }
     btn.disabled=false;
   });
   if(!window.crypto||!crypto.subtle||typeof DecompressionStream==="undefined"){ document.getElementById("dcgWait").textContent="Please update your browser (Chrome, Edge or Safari) to use DigiClass."; return; }
