@@ -1365,7 +1365,7 @@ function subjectsGrid(){
   return `<div class="stiles">${subs.map(subjectTile).join("")}</div>`;
 }
 function back(label, attr){ return `<div class="backbar"><button ${attr}>${IC.back}${esc(label)}</button></div>`; }
-const teacherBadge = () => `<div class="teacher"><span class="t-av" aria-hidden="true">JF</span><span><b>Janathul Firthouse</b><small>Senior Secondary Computer Science Teacher · India International School, Sharjah</small></span></div>`;
+const teacherBadge = () => `<div class="teacher"><span class="t-av" aria-hidden="true">JF</span><span><b>Janathul Firthouse, M.Tech (AI/ML), PGDT.</b><small>Senior Secondary Computer Science Teacher</small></span></div>`;
 function scopedCourse(){ return (typeof window!=="undefined" && window.DC_SCOPE) ? BYID[window.DC_SCOPE] : null; }
 const SYL_MOTIV = ["Small steps every day beat one big step the night before.","Every expert was once a beginner. Start today.","Progress, not perfection.","Debugging is just learning in disguise.","Your future self will thank you for studying today.","Focus for 25 minutes. You can do anything for 25 minutes.","Mistakes mean you're trying. Keep going.","Read the error, fix it, win."];
 function syllabusSnapshot(c){
