@@ -3543,7 +3543,7 @@ const TEACH = (()=>{
   // Chapters whose practical (@p1/@p2) sessions include a Mid-plenary check-in after Explain.
   const MID_LAB_CHAPTERS = new Set(["ip11-sql","ip11-dictionaries","cs11-lists-tuples","cs11-dictionaries","sql","ip12-series","ip12-dataframe"]);
   const stg = topic => { const s=String(topic||""); if(!/@p\d+$/.test(s)) return STAGES; return MID_LAB_CHAPTERS.has(s.split("@")[0])?LAB_STAGES_MID:LAB_STAGES; };
-  const STAGES = [["starter",IC.rocket,"Engage",3],["explore",IC.comet,"Explore",5],["learn",IC.orbitRing,"Explain",7],["mid",IC.satellite,"Mid-plenary",3],["activity",IC.orbitRing2,"Elaborate",13],["evaluate",IC.spaceDie,"Evaluate",5],["exit",IC.starburst,"Plenary",3],["ticket",IC.check,"Exit ticket",3]];
+  const STAGES = [["starter",IC.rocket,"Engage",3],["explore",IC.comet,"Explore",5],["learn",IC.orbitRing,"Explain",7],["mid",IC.satellite,"Mid-plenary",3],["activity",IC.orbitRing2,"Elaborate",13],["evaluate",IC.spaceDie,"Evaluate",5],["exit",IC.starburst,"Plenary",3],["ticket",IC.check,"Exit ticket",3],["homework",IC.book,"Homework",0]];
   // The same two cooperative strategies in every lesson, so students know them well.
   const TPS = {name:"Think–Pair–Share", steps:[["🤔","Think","On your own, 1 minute. Work it out in your notebook."],["👥","Pair","Compare with your partner. Agree on one answer and why."],["📣","Share","Tap your answer. Be ready to explain it to the class."]]};
   const NHT = {name:"Numbered Heads Together", roles:[["1","Reader","Reads the task aloud and keeps the group on time."],["2","Solver","Writes the working in the notebook."],["3","Checker","Checks the answer against the task and the hint."],["4","Reporter","Types the group's answer and explains it if the teacher calls number 4."]], how:"Put your heads together and make sure EVERY member can explain the answer. Your teacher may call any number, so be ready."};
@@ -4070,6 +4070,15 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
         <div class="ls-tl">${[["3","🟢","I understood it"],["2","🟡","Not sure yet"],["1","🔴","I need help"]].map(([v,ic,t])=>`<button data-tc-exit="${v}" class="${String(st)===v?"on":""}">${ic} ${t}</button>`).join("")}</div>
         <form class="ls-note" data-tc-note><input maxlength="200" placeholder="One thing I learned, or one thing still unclear (optional)" aria-label="Exit ticket comment"><button class="btn" type="submit">Send</button></form></div>
         ${tnote("Collecting exit tickets",`<p>Press 📊 Live results to see the 🟢🟡🔴 breakdown and every comment, so you know what to revisit next lesson.</p>`)}</div>`; }
+      case "homework": { const chUrl=typeof hashFor==="function"?hashFor({name:"chapter",id:ch.id}):"#/";
+        return `<div class="tc-stage"><h3>🏠 Homework <small>To finish on your own before next lesson.</small></h3>
+        <div class="hw-list">
+          <a class="hw-item" href="${chUrl}"><span class="hw-ico">📖</span><span><b>Revisit Learn</b><small>Go back through ${esc(ch.title)} on DigiClass -- re-read anything you weren't sure about.</small></span></a>
+          <a class="hw-item" href="${chUrl}"><span class="hw-ico">📝</span><span><b>Take the chapter quiz</b><small>Exam-style questions with instant feedback -- aim to get every one right.</small></span></a>
+          <div class="hw-item hw-note"><span class="hw-ico">📄</span><span><b>Practice / past-paper style questions</b><small>Go back over today's Challenge and Practice questions from the lesson -- they're written in the same style as real exam questions.</small></span></div>
+        </div>
+        ${!isT()?hd("homework",topic,"Have you completed your homework?"):""}
+        ${tnote("Setting homework",`<p>Students see this after the exit ticket. "Revisit Learn" and "Take the chapter quiz" open the chapter's own page, which is always available to them -- nothing extra to unlock. If you'd like a dedicated past-paper / mock-exam page (separate from the quiz), that's a bigger build -- it isn't live anywhere in DigiClass yet, for any subject -- just say the word and I'll add it.</p>`)}</div>`; }
     }
     return "";
   }
