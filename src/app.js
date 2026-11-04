@@ -3950,9 +3950,11 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
       case "starter": return `<div class="tc-stage"><h3>🔥 Engage <small>Get thinking: what do you already know?</small></h3>
         ${tpsCard()}${mcq("starter",topic,S.starter)}${!isT()?hd("starter",topic):""}
         ${tnote("Before you teach",`<p><b>Share the success criteria:</b> read the objective and the “I can…” statements above aloud, so students know what they are aiming for.</p><p>Run Think–Pair–Share, then press 📊 Live results to see what the class already knows before you explain.</p>`)}</div>`;
-      case "explore": { if(S.explore){ const id=`${topic}:x0`; let box=""; if(S.explore.run&&typeof RUNNER!=="undefined"){ RUNNER.register(id,S.explore.run); box=RUNNER.box(S.explore.run,id); }
-          return `<div class="tc-stage"><h3>🔍 Explore <small>Run it, change it, notice what happens.</small></h3>
-          <p class="act-intro">Work with your partner. <b>Predict first</b>, then run the code and try the changes below. Note what you find in your notebook.</p>
+      case "explore": { if(S.explore){ const id=`${topic}:x0`; let box=""; const hasCode=S.explore.run&&typeof RUNNER!=="undefined"; if(hasCode){ RUNNER.register(id,S.explore.run); box=RUNNER.box(S.explore.run,id); }
+          const exSub=hasCode?"Run it, change it, notice what happens.":"Look closely, discuss, and work it out together.";
+          const exIntro=hasCode?"Work with your partner. <b>Predict first</b>, then run the code and try the changes below. Note what you find in your notebook.":"Work with your partner. <b>Think it through first</b>, then talk through your reasoning below. Note what you find in your notebook.";
+          return `<div class="tc-stage"><h3>🔍 Explore <small>${exSub}</small></h3>
+          <p class="act-intro">${exIntro}</p>
           <div class="page">${md(S.explore.task)}</div><div class="explore-code">${box}</div>
           ${!isT()?hd("explore",topic,"Have you explored this?"):""}
           ${tnote("While they explore",`<p>Walk around. Ask pairs to explain one change they made and what happened. Pick two pairs to share at the start of Explain.</p><p><b>AfL:</b> once a pair ticks ✅ “Have you explored this?” below their task, they're ready to move to Explain — press 📊 Live results to see who still hasn't ticked.</p>`)}</div>`; }
