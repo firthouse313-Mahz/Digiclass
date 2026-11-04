@@ -2021,6 +2021,31 @@ body.sp-open .ak-fab{display:none}
 .vgrid-arrow{display:flex;align-items:center;justify-content:center;color:var(--brand);font-size:1.3rem;font-weight:800}
 @media (max-width:520px){.vgrid.flow{flex-direction:column}.vgrid.flow .vgrid-arrow{transform:rotate(90deg)}}
 
+/* ---------- starter rotation: surprise-me, unscramble, order ---------- */
+.tc-surprise{margin-left:auto;font-size:.78rem;padding:6px 12px;border-radius:999px;white-space:nowrap}
+.tc-stage>h3{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.uns-hint,.ord-prompt{margin:0 0 10px;font-size:.88rem;color:var(--muted)}
+.uns-slot{min-height:46px;display:flex;flex-wrap:wrap;gap:6px;padding:8px;border-radius:12px;border:2px dashed var(--line2);margin-bottom:10px}
+.uns-slotletter,.uns-tile{width:36px;height:40px;display:inline-flex;align-items:center;justify-content:center;font:800 1.1rem "Inter",sans-serif;border-radius:8px;cursor:pointer}
+.uns-slotletter{background:var(--brand);color:#fff;border:0}
+.uns-bank{display:flex;flex-wrap:wrap;gap:6px}
+.uns-tile{background:var(--surface2);border:1px solid var(--line2)}
+.uns-tile.used{visibility:hidden}
+.uns-ctrl{display:flex;gap:8px;margin-top:10px}
+.uns-fb,.ord-fb{margin-top:8px;font-size:.88rem}
+.uns-ok,.ord-ok{color:var(--ok,#12A454);font-weight:700}
+.uns-no,.ord-no{color:var(--muted)}
+.ord-slots{list-style:none;margin:0 0 10px;padding:0;display:flex;flex-direction:column;gap:6px;min-height:50px}
+.ord-slotitem{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:var(--surface2);border:1px solid var(--line2);cursor:pointer;counter-increment:ord}
+.ord-slotitem::before{content:counter(ord)".";font-weight:800;color:var(--brand)}
+.ord-slots{counter-reset:ord}
+.ord-slotitem.right{border-color:#12A454;background:var(--okbg)}
+.ord-slotitem.wrong{border-color:#E03131;background:rgba(224,49,49,.08)}
+.ord-bank{display:flex;flex-direction:column;gap:6px}
+.ord-item{text-align:left;padding:10px 12px;border-radius:10px;background:var(--surface);border:1px solid var(--line);cursor:pointer}
+.ord-item.used{display:none}
+.ord-ctrl{display:flex;gap:8px;margin-top:10px}
+
 /* ---------- code runner ---------- */
 .run{margin:12px 0;padding:12px;border-radius:14px;background:var(--surface2);border:1px solid var(--line)}
 .run-h{display:flex;justify-content:space-between;align-items:center;gap:8px}
