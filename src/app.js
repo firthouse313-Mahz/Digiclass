@@ -1535,7 +1535,7 @@ function vPracticeHub(pc){
   </div>`;
 }
 function vMe(){
-  const m=me();
+  const m=(typeof CLS!=="undefined"&&CLS.me)?CLS.me():null;
   const s=learningStats(), cp=s.total?Math.round(s.completed/s.total*100):0, lastCh=CHBY[last];
   const guides = COURSES.flatMap(c=>c.chapters.filter(ch=>ch.unit===0));
   const savedList=[...saved].filter(id=>CHBY[id]);
