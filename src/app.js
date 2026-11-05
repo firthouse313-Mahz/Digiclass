@@ -3930,7 +3930,7 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
       ${S.success.map((x,n)=>{ const st=m[`${topic}:sc${n}`]; return `<div class="tc-scr"><p>${inline(x)}</p><div class="ls-tl" role="group" aria-label="Success criterion ${n+1}">${[["3","🟢","Yes, I can"],["2","🟡","Partly"],["1","🔴","Not yet"]].map(([v,ic,t])=>`<button data-tc-sc="${n}" data-v="${v}" class="${String(st)===v?"on":""}">${ic} ${t}</button>`).join("")}</div></div>`; }).join("")}</div>`;
   }
   const MIDK=["mid","mid2","mid3","mid4"];
-  function qOf(topic, kind){ const S=cache[topic]&&cache[topic].s; if(!S) return null; const k=MIDK.indexOf(kind); return k>0&&S.mids?S.mids[k]:S[kind]; }
+  function qOf(topic, kind){ const S=cache[topic]&&cache[topic].s; if(!S) return null; const k=MIDK.indexOf(kind); return k>=0&&S.mids?S.mids[k]:S[kind]; }
   function hd(where, topic, label){
     const st=store.get("dc-lsn",{})[`${topic}:hd:${where}`];
     return `<div class="hd" data-hd-where="${where}" data-topic="${topic}"><b>${label||"How did you do?"}</b><div class="hd-b" role="group" aria-label="${label||"How did you do?"}">${HD.map(([v,ic,t])=>`<button data-hd="${v}" class="${String(st)===v?"on":""}">${ic} ${t}</button>`).join("")}</div></div>`;
@@ -4233,15 +4233,19 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
         const chUrl=typeof hashFor==="function"?hashFor({name:"chapter",id:ch.id}):"#/";
         const paperUrl=typeof hashFor==="function"?hashFor({name:"paper",course:cid}):"#/";
         const hasPaper=typeof paperOf==="function"&&paperOf(cid);
+        const lastI=(ch.sec||[]).length-1, isLast=i===lastI;
+        const lockNote=`Unlocks on the last lesson of this unit (Lesson ${lastI+1} of ${lastI+1}), once you've covered everything it could ask about.`;
         return `<div class="tc-stage"><h3>🏠 Homework <small>To finish on your own before next lesson.</small></h3>
         <div class="hw-list">
           <a class="hw-item" href="${chUrl}"><span class="hw-ico">📖</span><span><b>Revisit Learn</b><small>Go back through ${esc(ch.title)} on DigiClass -- re-read anything you weren't sure about.</small></span></a>
-          <a class="hw-item" href="${chUrl}"><span class="hw-ico">📝</span><span><b>Take the chapter quiz</b><small>Exam-style questions with instant feedback -- aim to get every one right.</small></span></a>
-          ${hasPaper?`<a class="hw-item" href="${paperUrl}"><span class="hw-ico">📄</span><span><b>Mock paper</b><small>A timed, exam-style mock paper on this topic -- MCQs auto-marked, written answers self-marked against a model answer.</small></span></a>`
+          ${isLast?`<a class="hw-item" href="${chUrl}"><span class="hw-ico">📝</span><span><b>Take the chapter quiz</b><small>Exam-style questions with instant feedback -- aim to get every one right.</small></span></a>`
+            :`<div class="hw-item hw-locked" aria-disabled="true"><span class="hw-ico">🔒</span><span><b>Take the chapter quiz</b><small>${lockNote}</small></span></div>`}
+          ${hasPaper?(isLast?`<a class="hw-item" href="${paperUrl}"><span class="hw-ico">📄</span><span><b>Mock paper</b><small>A timed, exam-style mock paper on this topic -- MCQs auto-marked, written answers self-marked against a model answer.</small></span></a>`
+              :`<div class="hw-item hw-locked" aria-disabled="true"><span class="hw-ico">🔒</span><span><b>Mock paper</b><small>${lockNote}</small></span></div>`)
             :`<div class="hw-item hw-note"><span class="hw-ico">📄</span><span><b>Practice / past-paper style questions</b><small>Go back over today's Challenge and Practice questions from the lesson -- they're written in the same style as real exam questions.</small></span></div>`}
         </div>
         ${!isT()?hd("homework",topic,"Have you completed your homework?"):""}
-        ${tnote("Setting homework",`<p>Students see this after the exit ticket. All three links open pages that are always available to them -- nothing extra to unlock.${hasPaper?" The mock paper has a timer and submits automatically; they can review their answers and self-mark the written questions straight after.":""}</p>`)}</div>`; }
+        ${tnote("Setting homework",`<p>Students see this after the exit ticket. "Revisit Learn" is always available. The chapter quiz${hasPaper?" and mock paper are":" is"} locked until students reach the LAST lesson of this unit, so they only attempt it once they've covered everything it could ask about.${hasPaper?" The mock paper has a timer and submits automatically; they can review their answers and self-mark the written questions straight after.":""}</p>`)}</div>`; }
     }
     return "";
   }
