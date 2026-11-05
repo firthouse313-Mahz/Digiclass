@@ -3410,14 +3410,15 @@ html.dc-opening #dcGate::before{content:'Opening DigiClass…';position:fixed;in
   if(!window.crypto||!crypto.subtle||typeof DecompressionStream==="undefined"){ document.getElementById("dcgWait").textContent="Please update your browser (Chrome, Edge or Safari) to use DigiClass."; return; }
   // Stay logged in across reloads, but not forever -- for anyone, teacher
   // included. It's a browser SESSION (sessionStorage survives a reload but
-  // clears when the tab/window actually closes) AND it also expires 15
+  // clears when the tab/window actually closes) AND it also expires 90
   // minutes after the last time this device touched DigiClass (dc-seen,
   // refreshed while the app is open, in app.js). The two together mean:
   // closing the tab asks again next time, and even a tab left open and
   // merely minimised/backgrounded (where a browser can keep sessionStorage
-  // alive longer than you'd expect) still times out within 15 minutes, the
-  // way a banking or school portal does.
-  var SESSION_MS = 15*60*1000;
+  // alive longer than you'd expect) still times out eventually, the way a
+  // banking or school portal does -- 90 minutes so a lesson (or a gap while
+  // setting up before class) doesn't get silently logged out mid-use.
+  var SESSION_MS = 90*60*1000;
   function hasIdentity(){
     try{
       if(sessionStorage.getItem("dc-session")!=="1") return false;
