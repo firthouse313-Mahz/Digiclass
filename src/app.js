@@ -1217,7 +1217,7 @@ function rich(t){
   }).join("");
 }
 const quizOf = id => CHBY[id] && CHBY[id].course.quiz[id];
-const bankOf = id => { const ch=CHBY[id]; const x=ch&&typeof EXTRA!=="undefined"&&EXTRA[ch.course.id]; return (x&&x.bank[id])||[]; };
+const bankOf = id => { const ch=CHBY[id]; const x=ch&&typeof EXTRA!=="undefined"&&EXTRA[ch.course.id]; return (x&&x.bank&&x.bank[id])||[]; };
 const paperOf = cid => (typeof EXTRA!=="undefined"&&EXTRA[cid]&&EXTRA[cid].paper)||null;
 const bankCount = c => c.chapters.reduce((n,ch)=>n+bankOf(ch.id).length,0);
 const quizCount = c => Object.values(c.quiz).reduce((n,q)=>n+q.length,0);
