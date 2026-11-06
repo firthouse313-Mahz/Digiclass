@@ -3690,7 +3690,7 @@ const TEACH = (()=>{
   const LAB_STAGES_MID = [["starter",IC.rocket,"Engage",2],["explore",IC.comet,"Explore",3],["learn",IC.orbitRing,"Explain",3],["mid",IC.satellite,"Mid-plenary",4],["lab",IC.ufo,"Elaborate",20],["exit",IC.starburst,"Plenary",5]];
   // Chapters whose practical (@p1/@p2) sessions include a Mid-plenary check-in after Explain.
   const MID_LAB_CHAPTERS = new Set(["ip11-sql","ip11-dictionaries","cs11-lists-tuples","cs11-dictionaries","sql","ip12-series","ip12-dataframe"]);
-  const stg = topic => { const s=String(topic||""); if(!/@p\d+$/.test(s)) return STAGES; return MID_LAB_CHAPTERS.has(s.split("@")[0])?LAB_STAGES_MID:LAB_STAGES; };
+  const stg = topic => { const s=String(topic||""); if(!/@p\d+$/.test(s)){ const [cid,si]=s.split("@"); const ch=CHBY[cid]; const title=ch&&ch.sec&&ch.sec[si]?ch.sec[si][0]:""; return /\(Lab\)$/.test(title)?STAGES_DOUBLE:STAGES; } return MID_LAB_CHAPTERS.has(s.split("@")[0])?LAB_STAGES_MID:LAB_STAGES; };
   const STARTER_FORMATS = [
     {key:"starter", kind:"mcq", label:"🧠 Brain Booster"},
     {key:"starterSpot", kind:"mcq", label:"🔍 Spot the Error"},
@@ -3699,6 +3699,7 @@ const TEACH = (()=>{
     {key:"starterOrder", kind:"order", label:"🔢 Sequence Solver"}
   ];
   const STAGES = [["starter",IC.rocket,"Engage",3],["explore",IC.comet,"Explore",5],["learn",IC.orbitRing,"Explain",7],["mid",IC.satellite,"Mid-plenary",3],["activity",IC.orbitRing2,"Elaborate",13],["evaluate",IC.spaceDie,"Evaluate",5],["exit",IC.starburst,"Plenary",3],["ticket",IC.check,"Exit ticket",3],["homework",IC.book,"Homework",0]];
+  const STAGES_DOUBLE = [["starter",IC.rocket,"Engage",5],["explore",IC.comet,"Explore",10],["learn",IC.orbitRing,"Explain",7],["mid",IC.satellite,"Mid-plenary",6],["activity",IC.orbitRing2,"Elaborate",34],["evaluate",IC.spaceDie,"Evaluate",10],["exit",IC.starburst,"Plenary",4],["ticket",IC.check,"Exit ticket",4],["homework",IC.book,"Homework",0]];
   // The same two cooperative strategies in every lesson, so students know them well.
   const TPS = {name:"Think–Pair–Share", steps:[["🤔","Think","On your own, 1 minute. Work it out in your notebook."],["👥","Pair","Compare with your partner. Agree on one answer and why."],["📣","Share","Tap your answer. Be ready to explain it to the class."]]};
   const NHT = {name:"Numbered Heads Together", roles:[["1","Reader","Reads the task aloud and keeps the group on time."],["2","Solver","Writes the working in the notebook."],["3","Checker","Checks the answer against the task and the hint."],["4","Reporter","Types the group's answer and explains it if the teacher calls number 4."]], how:"Put your heads together and make sure EVERY member can explain the answer. Your teacher may call any number, so be ready."};
