@@ -4101,15 +4101,17 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
   }
   function labSetHTML(topic, X, lv){
     const st=labSt(topic), items=X.sets[lv]||[], n=items.filter((q,j)=>isDone(st,lv+(j+1))).length, nx=lv==="L"?"M":lv==="M"?"H":null, L=LABL[lv], allDone=n===items.length;
+    const extBlock = X.ext && (Array.isArray(X.ext)?X.ext.length:1)
+      ? `<div class="lx-next lx-ext"><h4 class="lx-h"><span>🏆</span> Extension <small>Finished fast? Try these.</small></h4>${(Array.isArray(X.ext)?X.ext:[X.ext]).map((q,j)=>labTask(topic,"X"+(j+1),q)).join("")}</div>`
+      : "";
     let nextBlock;
     if(isT()){
       nextBlock = nx
         ? `<div class="lx-next"><p>Finished all ${items.length}? Move up to the next set.</p><button class="btn primary" data-lxlv="${nx}" data-topic="${topic}">${LABL[nx][0]} Go to ${LABL[nx][2]}: ${LABL[nx][1]}</button></div>`
-        : `<div class="lx-next"><p>🏆 Finished the Challenge set? Help a classmate, or explain your hardest query to the teacher.</p></div>`;
+        : `<div class="lx-next"><p>🏆 Finished the Challenge set? Help a classmate, or explain your hardest query to the teacher.</p></div>${extBlock}`;
     } else if(allDone && lv==="H"){
-      nextBlock = X.ext && (Array.isArray(X.ext)?X.ext.length:1)
-        ? `<div class="lx-next lx-ext"><h4 class="lx-h"><span>🏆</span> Extension <small>Finished fast? Try these.</small></h4>${(Array.isArray(X.ext)?X.ext:[X.ext]).map((q,j)=>labTask(topic,"X"+(j+1),q)).join("")}</div>`
-        : `<div class="lx-next"><p>🏆 Finished the Challenge set? Help a classmate, or explain your hardest query to the teacher.</p></div>`;
+      nextBlock = extBlock
+        || `<div class="lx-next"><p>🏆 Finished the Challenge set? Help a classmate, or explain your hardest query to the teacher.</p></div>`;
     } else if(allDone){
       nextBlock = `<div class="lx-next"><p>🎉 Great work finishing ${L[2]}! Your teacher will let you know if you move up.</p></div>`;
     } else {
