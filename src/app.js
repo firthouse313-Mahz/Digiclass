@@ -3774,9 +3774,16 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
     const rest=explainParts;
     const midArr = s.mids || (s.mid?[s.mid]:[]);
     const oneLine = x => String(x||"").replace(/\s*\n+\s*/g," ").trim();
-    // Elaborate: for a theory topic, every task DigiClass Teach itself offers (support/core/
-    // stretch/challenge -- same content as the in-app Elaborate board), just without the
-    // ability-tier labels. Up to 4 acts + 1 homework task fill the plan's 6 task boxes.
+    // Elaborate: for a theory topic, EVERY task DigiClass Teach itself offers in this stage --
+    // the main support/core/stretch/challenge group board (s.acts, each card tier-labelled the
+    // same way the on-screen "act-prog" bar labels it via LV[]), PLUS the "finish early" board
+    // (🧠 HOTS / 🇦🇪 Extended task / 🏆 Bonus challenge, built by allActs() beyond s.acts) that
+    // DigiClass shows under the heading "for groups who finish the board: post your answers
+    // here too". The printed plan must show the SAME items with the SAME tier labels, not a
+    // flattened, unlabelled list -- Homework is deliberately NOT one of these task boxes: the
+    // real Homework stage in DigiClass Teach is "Revisit Learn" + chapter quiz + mock paper/
+    // practice pointer (see the homework-stage renderer), not a single practice question, so
+    // it's described properly down in the Assignments box instead of squeezed in here.
     // For a practical/lab topic (every @p1/@p2/... and the cs11-dictionaries@0 hybrid), the
     // real ~40-minute Elaborate-position activity in DigiClass Teach is the Lab-work stage
     // itself, NOT a Numbered-Heads-Together group board -- s.acts is either empty or (for the
@@ -3784,24 +3791,37 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
     // the printed plan must describe the lab's own Part A + Set L/M/H + Extension structure
     // instead, or the download doesn't match what the teacher actually runs in the app.
     const isLab = !!(s.lab && s.lab.sets);
-    const acts4 = (s.acts||[]).slice(0,4);
-    const hwText = oneLine((s.practice&&s.practice[1]&&s.practice[1].q) || (s.practice&&s.practice[0]&&s.practice[0].q) || "");
     let CH;
     if(isLab){
       const lab=s.lab, A=lab.partA||[], L=(lab.sets&&lab.sets.L)||[], M=(lab.sets&&lab.sets.M)||[], H=(lab.sets&&lab.sets.H)||[], EXT=lab.ext||[];
       const smp = arr => arr[0] ? oneLine(arr[0].task)+(arr.length>1?` (+${arr.length-1} more in DigiClass)`:""):"";
       CH = [
-        {title:`Part A — whole class (${A.length} task${A.length===1?"":"s"})`, task:smp(A)},
-        {title:`🟢 Set L — Foundation (${L.length})`, task:smp(L)},
-        {title:`🟡 Set M — Core (${M.length})`, task:smp(M)},
-        {title:`🔴 Set H — Stretch (${H.length})`, task:smp(H)},
-        {title:EXT.length?`🏆 Extension / HOTS (${EXT.length})`:"", task:smp(EXT)},
-        {title:"", task:""}
+        {title:`Part A — whole class (${A.length} task${A.length===1?"":"s"})`, task:smp(A), tier:""},
+        {title:`Set L — Foundation (${L.length})`, task:smp(L), tier:"🟢 Support"},
+        {title:`Set M — Core (${M.length})`, task:smp(M), tier:"🟡 Core"},
+        {title:`Set H — Stretch (${H.length})`, task:smp(H), tier:"🔴 Stretch"},
+        {title:EXT.length?`Extension / HOTS (${EXT.length})`:"", task:smp(EXT), tier:EXT.length?"🏆 Bonus / 🧠 HOTS":""},
+        {title:"", task:"", tier:""}
       ];
     }else{
-      CH = [0,1,2,3].map(n=>({title: acts4[n]?oneLine(acts4[n].title):"", task: acts4[n]?oneLine(acts4[n].task):""}));
-      CH.push({title: hwText?"Homework":"", task: hwText});
-      CH.push({title:"", task:""});
+      // Main group board: every s.acts card, tier-labelled from the same LV[] lookup the
+      // on-screen board uses -- never sliced to 4, since a few topics genuinely have 5.
+      const main = (s.acts||[]).map(a=>({title: oneLine(a.title), task: oneLine(a.task), tier: LV[a.level]?(LV[a.level][0]+" "+LV[a.level][1]):""}));
+      // "Finish early" board: the same two extra cards allActs() appends beyond s.acts.
+      const extra = [];
+      if(s.extend) extra.push({title:"Extended task", task:oneLine(s.extend.q), tier:"🇦🇪 Extended task"});
+      if(s.challenge) extra.push({title:"Bonus challenge", task:oneLine(s.challenge.q), tier:"🏆 Bonus challenge"});
+      const all = main.concat(extra);
+      if(all.length<=6){
+        CH = all.slice(); while(CH.length<6) CH.push({title:"", task:"", tier:""});
+      }else{
+        // Rare (a few merged/double topics run 2 full support-core-stretch-challenge rounds):
+        // show the first 5 cards in full and summarise the rest by title rather than silently
+        // dropping them, so nothing DigiClass actually offers goes missing from the printout.
+        const rest = all.slice(5);
+        CH = all.slice(0,5);
+        CH.push({title:"+"+rest.length+" more task"+(rest.length===1?"":"s")+" in DigiClass", task: rest.map(r=>(r.tier?r.tier+": ":"")+r.title).join("; "), tier:""});
+      }
     }
     setGroupsFor(ch.id);
     const groupNames = GROUPS.map(g=>g[1]).join(", ");
@@ -3816,6 +3836,20 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
       ? "Fast finishers move straight to the 🏆 Extension tasks instead of waiting — nobody who completes early just sits idle."
       : "After group work, the teacher calls out ONE number (1-4) at random on DigiClass -- the student holding that number must explain or present the group's answer, not just the Reporter -- so every member is individually accountable for understanding the work.";
     const topicTitle=secName(ch,i);
+    // Homework in DigiClass Teach is never a single practice question -- the real "case homework"
+    // stage is always: revisit Learn, then the chapter quiz (locked until the unit's last lesson),
+    // then a mock paper if one exists for this course (also last-lesson-only) or, if not, a pointer
+    // back to today's Challenge/Bonus-challenge questions. The Assignments box has to describe
+    // THAT, or it tells the teacher to assign something DigiClass doesn't actually offer here.
+    const hwCid = (typeof CHBY!=="undefined" && CHBY[ch.id]) ? CHBY[ch.id].course.id : "ict10";
+    const hwIsLast = i===((ch.sec||[]).length-1);
+    const hwHasPaper = typeof paperOf==="function" && !!paperOf(hwCid);
+    const ASSIGNMENT_TEXT = "Revisit Learn: re-read "+topicTitle+" on DigiClass for anything you weren't sure about. "
+      + (hwIsLast ? "Chapter quiz (unlocked -- this is the unit's last lesson): exam-style questions with instant feedback."
+                  : "Chapter quiz: unlocks once this unit's last lesson is reached.")
+      + " " + (hwHasPaper ? (hwIsLast ? "Mock paper (unlocked): a timed, exam-style mock paper on this topic."
+                                       : "Mock paper: unlocks on the unit's last lesson.")
+                           : "Practice / past-paper style: revisit today's Challenge and Bonus-challenge questions, written in exam style.");
     // Self-check / teacher-check rubrics and the Plenary/Exit-ticket description are all generic
     // methodology (how the AfL loop actually runs), not topic content from s/t -- but they still
     // branch on isLab vs Numbered-Heads the same way GROUPS_LINE/ROLES_LINE above do, so the
@@ -3906,17 +3940,17 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
       RUBRIC_EXCEED: RUBRIC_EXCEED,
       RUBRIC_MEET: RUBRIC_MEET,
       RUBRIC_BELOW: RUBRIC_BELOW,
-      CH1_TITLE: CH[0].title, CH1_TIER: "",
+      CH1_TITLE: CH[0].title, CH1_TIER: CH[0].tier||"",
       CH1_TASK: CH[0].task, CH1_SKILLS: "",
-      CH2_TITLE: CH[1].title, CH2_TIER: "",
+      CH2_TITLE: CH[1].title, CH2_TIER: CH[1].tier||"",
       CH2_TASK: CH[1].task, CH2_SKILLS: "",
-      CH3_TITLE: CH[2].title, CH3_TIER: "",
+      CH3_TITLE: CH[2].title, CH3_TIER: CH[2].tier||"",
       CH3_TASK: CH[2].task, CH3_SKILLS: "",
-      CH4_TITLE: CH[3].title, CH4_TIER: "",
+      CH4_TITLE: CH[3].title, CH4_TIER: CH[3].tier||"",
       CH4_TASK: CH[3].task, CH4_SKILLS: "",
-      CH5_TITLE: CH[4].title, CH5_TIER: "",
+      CH5_TITLE: CH[4].title, CH5_TIER: CH[4].tier||"",
       CH5_TASK: CH[4].task, CH5_SKILLS: "",
-      CH6_TITLE: CH[5].title, CH6_TIER: "", CH6_TASK: CH[5].task, CH6_SKILLS: "",
+      CH6_TITLE: CH[5].title, CH6_TIER: CH[5].tier||"", CH6_TASK: CH[5].task, CH6_SKILLS: "",
       HOTQ_TEXT: s.hots?s.hots.q:"",
       HOTQ_ANSWER: t.hots_a?("(Output: "+t.hots_a+")"):"",
       PLENARY_TEXT: lpMcq("", s.plenary).replace(/^\.\s*/,""),
@@ -3925,8 +3959,8 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
       REALWORLD: s.realworld||"",
       CROSSCURR: "Maths: logical structures and data patterns. English: precise, technical wording.",
       UAE: s.uae||"",
-      ASSIGNMENT: s.practice&&s.practice[0]?s.practice[0].q:"",
-      EXTENSION: s.hots?s.hots.q:"",
+      ASSIGNMENT: ASSIGNMENT_TEXT,
+      EXTENSION: (s.extend||s.challenge) ? ("Already offered to early finishers directly on the Elaborate board above: "+[s.extend?"🇦🇪 Extended task":"",s.challenge?"🏆 Bonus challenge":""].filter(Boolean).join(" and ")+".") : "",
     };
     const blob=await lpBuildDocx(tags);
     const url=URL.createObjectURL(blob);
