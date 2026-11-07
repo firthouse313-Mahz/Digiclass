@@ -3741,9 +3741,6 @@ function lpB64ToBytes(b64){ const bin=atob(b64); const arr=new Uint8Array(bin.le
 function lpLetter(i){ return ["A","B","C","D","E"][i]||""; }
 function lpSubjAbbr(sub){ sub=sub||""; if(/computer science/i.test(sub)) return "CS"; if(/informatics/i.test(sub)) return "IP"; const m=sub.match(/[A-Z]/g); return m?m.join("").slice(0,3):"SUB"; }
 function lpMcq(label, q){ if(!q) return ""; const opts=(q.o||[]).map((o,i)=>lpLetter(i)+") "+o).join("  "); return label+". "+q.q+(opts?"  "+opts:"")+"  Answer: "+(q.o?lpLetter(q.a)+" - ":"")+(q.why||""); }
-// Mid-plenary questions print WITHOUT the answer reveal -- these are live in-lesson checks,
-// not a teacher answer key, so the printed plan shouldn't give the game away under the question.
-function lpMcqQ(label, q){ if(!q) return ""; const opts=(q.o||[]).map((o,i)=>lpLetter(i)+") "+o).join("  "); return label+". "+q.q+(opts?"  "+opts:""); }
 function lpQa(label, qa){ if(!qa) return ""; return label+". "+qa.q+"  Answer: "+qa.a; }
 async function lpBuildDocx(tags){
   const zip=await JSZip.loadAsync(lpB64ToBytes(LP_TPL_B64));
@@ -3868,15 +3865,16 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
       EXPLAIN_B_TITLE: "", EXPLAIN_B_TEXT: rest[1]||"",
       EXPLAIN_C_TITLE: "", EXPLAIN_C_TEXT: rest[2]||"",
       EXPLAIN_D_TITLE: "", EXPLAIN_D_TEXT: rest[3]||"",
-      // Mid-plenary is a LIVE in-lesson check, never a teacher answer key, so these print
-      // without the answer reveal (lpMcqQ, not lpMcq). There are at most 4 real mid-plenary
-      // questions (S.mids, max length 4) -- MIDQ5 used to smuggle in the Evaluate-stage
-      // S.plenary question under the Mid-plenary heading, which doesn't match what actually
-      // happens in that stage, so it's left blank now rather than filled with the wrong thing.
-      MIDQ1: lpMcqQ("Q1", midArr[0]),
-      MIDQ2: lpMcqQ("Q2", midArr[1]),
-      MIDQ3: lpMcqQ("Q3", midArr[2]),
-      MIDQ4: lpMcqQ("Q4", midArr[3]),
+      // Mid-plenary questions print WITH the answer (lpMcq) -- this is a teacher's own working
+      // document, so every question on it (starter, mid-plenary, plenary) carries its answer.
+      // There are at most 4 real mid-plenary questions (S.mids, max length 4) -- MIDQ5 used to
+      // smuggle in the Evaluate-stage S.plenary question under the Mid-plenary heading, which
+      // doesn't match what actually happens in that stage, so it's left blank rather than
+      // filled with the wrong thing.
+      MIDQ1: lpMcq("Q1", midArr[0]),
+      MIDQ2: lpMcq("Q2", midArr[1]),
+      MIDQ3: lpMcq("Q3", midArr[2]),
+      MIDQ4: lpMcq("Q4", midArr[3]),
       MIDQ5: "",
       GROUPS_LINE: GROUPS_LINE,
       ELAB_STRATEGY_TITLE: ELAB_STRATEGY_TITLE,
