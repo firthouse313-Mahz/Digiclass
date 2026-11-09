@@ -41,8 +41,8 @@ const CLASS_CODE = /*__CODE__*/'';
 // Unlocks the DigiClass pages. Do not share this script.
 const LEARN_KEY = /*__LEARN__*/'';
 
-const ACTIVITY_HEADERS = ['Time', 'Name', 'Class', 'Event', 'Course', 'Chapter', 'Score', 'Total', 'Student ID', 'Boy/Girl', 'Subject', 'Answer'];
-const FEEDBACK_HEADERS = ['Time', 'Name', 'Class', 'Type', 'Reason', 'Message', 'Page', 'About', 'Student ID', 'Boy/Girl', 'Subject'];
+const ACTIVITY_HEADERS = ['Time', 'Name', 'Class', 'Event', 'Course', 'Chapter', 'Score', 'Total', 'Student ID', 'Boy/Girl', 'Subject', 'Answer', 'Class ID'];
+const FEEDBACK_HEADERS = ['Time', 'Name', 'Class', 'Type', 'Reason', 'Message', 'Page', 'About', 'Student ID', 'Boy/Girl', 'Subject', 'Class ID'];
 // Each student picks their own PIN the first time they log in. Only a salted hash is stored here —
 // never the PIN itself — so a classmate can't log in as someone else just by typing their name.
 const STUDENT_HEADERS = ['Name', 'Salt', 'Hash', 'Student ID', 'Class', 'Subject', 'Boy/Girl', 'First seen'];
@@ -181,12 +181,12 @@ function doPost(e) {
     } else if (d.kind === 'feedback') {
       sheet_(subjSheet_('Feedback', d.sub), FEEDBACK_HEADERS).appendRow([
         new Date(), clean_(d.name, 40), clean_(d.cls, 5), clean_(d.type, 20), clean_(d.reason, 40),
-        clean_(d.message, 800), clean_(d.page, 100), clean_(d.ref, 60), clean_(d.sid, 12), clean_(d.g, 5), clean_(d.sub, 25)
+        clean_(d.message, 800), clean_(d.page, 100), clean_(d.ref, 60), clean_(d.sid, 12), clean_(d.g, 5), clean_(d.sub, 25), clean_(d.classId, 12)
       ]);
     } else {
       sheet_(subjSheet_('Activity', d.sub), ACTIVITY_HEADERS).appendRow([
         new Date(), clean_(d.name, 40), clean_(d.cls, 5), clean_(d.event, 10), clean_(d.course, 8),
-        clean_(d.chapter, 40), num_(d.score), num_(d.total), clean_(d.sid, 12), clean_(d.g, 5), clean_(d.sub, 25), clean_(d.ans, 10)
+        clean_(d.chapter, 40), num_(d.score), num_(d.total), clean_(d.sid, 12), clean_(d.g, 5), clean_(d.sub, 25), clean_(d.ans, 10), clean_(d.classId, 12)
       ]);
     }
     if (uid) cache.put('u_' + uid, '1', 21600);
@@ -210,9 +210,10 @@ function doGet(e) {
   // Public, only for a lesson that is live: the answers groups posted (group name + answer, no student names).
   if (a === 'board') {
     const t = String(p.topic || '');
+    const cid = String(p.classId || '');
     if (openTopics_().indexOf(t) < 0) return out_({ error: 'locked' });
-    const posts = rows_('Feedback', ['ts', 'name', 'cls', 'type', 'reason', 'message', 'page', 'ref'], 4000)
-      .filter(function (r) { return r.type === 'group' && String(r.ref).indexOf(t + '#') === 0; })
+    const posts = rows_('Feedback', ['ts', 'name', 'cls', 'type', 'reason', 'message', 'page', 'ref', 'classId'], 4000)
+      .filter(function (r) { return r.type === 'group' && String(r.ref).indexOf(t + '#') === 0 && (!cid || !r.classId || r.classId === cid); })
       .map(function (r) { return { ts: r.ts, g: r.reason, a: String(r.ref).split('#')[1], msg: r.message }; });
     return out_({ ok: true, posts: posts, groups: groups_() });
   }
@@ -405,19 +406,20 @@ function doGet(e) {
     }
     if (a === 'summary') {
       const t = String(p.topic || '');
+      const cid = String(p.classId || '');
       if (t) {
         if (!topicInSubject_(t, st.subjectId)) return out_({ error: 'not allowed for this PIN' });
-        const act = rows_('Activity', ['ts', 'name', 'cls', 'event', 'course', 'chapter', 'score', 'total', 'sid', 'g', 'sub', 'ans'], 4000)
-          .filter(function (r) { return String(r.chapter) === t; });
-        const fb = rows_('Feedback', ['ts', 'name', 'cls', 'type', 'reason', 'message', 'page', 'ref', 'sid', 'g', 'sub'], 4000)
-          .filter(function (f) { const r = String(f.ref); return r === t || r.indexOf(t + '#') === 0; });
+        const act = rows_('Activity', ['ts', 'name', 'cls', 'event', 'course', 'chapter', 'score', 'total', 'sid', 'g', 'sub', 'ans', 'classId'], 4000)
+          .filter(function (r) { return String(r.chapter) === t && (!cid || !r.classId || r.classId === cid); });
+        const fb = rows_('Feedback', ['ts', 'name', 'cls', 'type', 'reason', 'message', 'page', 'ref', 'sid', 'g', 'sub', 'classId'], 4000)
+          .filter(function (f) { const r = String(f.ref); return (r === t || r.indexOf(t + '#') === 0) && (!cid || !f.classId || f.classId === cid); });
         return out_({ activity: act, feedback: fb });
       }
       // No &topic=: the whole-class "My Class (live)" view -- filtered to her Subject column,
       // so it covers every topic she's ever taught, past and future, without a fixed list.
-      const act = rows_('Activity', ['ts', 'name', 'cls', 'event', 'course', 'chapter', 'score', 'total', 'sid', 'g', 'sub', 'ans'], 0)
+      const act = rows_('Activity', ['ts', 'name', 'cls', 'event', 'course', 'chapter', 'score', 'total', 'sid', 'g', 'sub', 'ans', 'classId'], 0)
         .filter(function (r) { return r.sub === st.subjectName; });
-      const fb = rows_('Feedback', ['ts', 'name', 'cls', 'type', 'reason', 'message', 'page', 'ref', 'sid', 'g', 'sub'], 0)
+      const fb = rows_('Feedback', ['ts', 'name', 'cls', 'type', 'reason', 'message', 'page', 'ref', 'sid', 'g', 'sub', 'classId'], 0)
         .filter(function (f) { return f.sub === st.subjectName; });
       return out_({ activity: act, feedback: fb });
     }
@@ -447,12 +449,13 @@ function doGet(e) {
   if (a === 'summary') {
     // With &topic=… only that lesson's rows (from the most recent 4000) are sent, so live results stay fast all year.
     const t = String(p.topic || '');
-    const act = rows_('Activity', ['ts', 'name', 'cls', 'event', 'course', 'chapter', 'score', 'total', 'sid', 'g', 'sub', 'ans'], t ? 4000 : 0);
-    const fb = rows_('Feedback', ['ts', 'name', 'cls', 'type', 'reason', 'message', 'page', 'ref', 'sid', 'g', 'sub'], t ? 4000 : 0);
+    const cid = String(p.classId || '');
+    const act = rows_('Activity', ['ts', 'name', 'cls', 'event', 'course', 'chapter', 'score', 'total', 'sid', 'g', 'sub', 'ans', 'classId'], t ? 4000 : 0);
+    const fb = rows_('Feedback', ['ts', 'name', 'cls', 'type', 'reason', 'message', 'page', 'ref', 'sid', 'g', 'sub', 'classId'], t ? 4000 : 0);
     if (!t) return out_({ activity: act, feedback: fb });
     return out_({
-      activity: act.filter(function (r) { return String(r.chapter) === t; }),
-      feedback: fb.filter(function (f) { const r = String(f.ref); return r === t || r.indexOf(t + '#') === 0; })
+      activity: act.filter(function (r) { return String(r.chapter) === t && (!cid || !r.classId || r.classId === cid); }),
+      feedback: fb.filter(function (f) { const r = String(f.ref); return (r === t || r.indexOf(t + '#') === 0) && (!cid || !f.classId || f.classId === cid); })
     });
   }
   // Teacher-only: moves rows older than &before=YYYY-MM-DD out of the live Activity/Feedback

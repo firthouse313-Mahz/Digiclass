@@ -4504,7 +4504,7 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
   }
   let STAGE="starter";
   let TSEC=store.get("dc-tsec","");
-  function classOptions(course){ return DC_CLASS.sections; }
+  function classOptions(course){ return DC_CLASS.sections.filter(s=>String(s.cls)===String(course.grade)&&s.sub===course.subject); }
   let autoT=0;
   function view(v){
     if(EP && !ALL && !autoT && store.get(PINK,"") && sessionStorage.getItem("dc-tmode")==="1"){ autoT=1; signIn(store.get(PINK,"")).then(()=>{ if(view.name==="teach") rerender(); }).catch(()=>{}).finally(()=>{ autoT=0; }); }
