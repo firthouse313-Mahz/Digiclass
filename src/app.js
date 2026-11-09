@@ -4396,7 +4396,7 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
   }
   function labSend(topic, data){ if(isT()) return; try{ const ch=CHBY[topic.split("@")[0]]; CLS.send(data.ev,{course:ch.course.id, chapter:topic, score:data.score, total:1, ans:data.ans}); }catch(e){} }
   (window.DC_RUN_HOOKS=window.DC_RUN_HOOKS||[]).push((id,good,el)=>{
-    const m=String(id).match(/^(.+@p\d+):([ALMHX]\d+)$/); if(!m) return; const topic=m[1], key=m[2]; let first=false, stuck=false;
+    const m=String(id).match(/^(.+@p?\d+):([ALMHX]\d+)$/); if(!m) return; const topic=m[1], key=m[2]; let first=false, stuck=false;
     labSave(topic,o=>{ o.done=o.done||{}; o.tries=o.tries||{}; if(good){ if(!o.done[key]){ o.done[key]=1; first=true; } } else { o.tries[key]=(o.tries[key]||0)+1; if(o.tries[key]===2&&!o.done[key]) stuck=true; } });
     if(first) labSend(topic,{ev:"lab",score:1,ans:key}); if(stuck) labSend(topic,{ev:"lab",score:0,ans:key});
     const st=labSt(topic), card=el&&el.closest(".lx-task");
