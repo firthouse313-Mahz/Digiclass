@@ -270,6 +270,34 @@ function doGet(e) {
       return out_({ error: String(err) });
     }
   }
+  // Teacher-only: a student mistyped their PIN too many times and is locked out for up to
+  // 10 minutes ("too many tries"), or has genuinely forgotten their PIN. &name= is the student's
+  // display name exactly as they type it (matched the same case-insensitive way 'claim' does).
+  // mode=unlock (default) just clears the lockout so they can try their PIN again right away.
+  // mode=forgot also deletes their Students row, so their next login sets a brand-new PIN --
+  // use this when they truly don't remember it (their chapter/quiz history is kept; only the
+  // PIN itself is reset, since that history is tracked by name, not by this row).
+  if (a === 'resetpin') {
+    const isTeacher = pinOk_(p);
+    const st = !isTeacher ? subjectTeacherFor_(p) : null;
+    if (!isTeacher && !st) return out_({ error: 'pin' });
+    const nameNorm = norm_(p.name || '');
+    if (!nameNorm) return out_({ error: 'name' });
+    CacheService.getScriptCache().remove('pf_' + nameNorm);
+    if (String(p.mode || '') === 'forgot') {
+      const lock = LockService.getScriptLock();
+      lock.waitLock(10000);
+      try {
+        const sh = sheet_('Students', STUDENT_HEADERS);
+        const row = findStudentRow_(sh, nameNorm);
+        if (row > 0) sh.deleteRow(row);
+        return out_({ ok: true, cleared: true, forgot: true, found: row > 0 });
+      } finally {
+        lock.releaseLock();
+      }
+    }
+    return out_({ ok: true, cleared: true });
+  }
   // DigiClass Live (a Kahoot/Gimkit-style live quiz): join and play are public, like the class
   // code itself -- there's nothing sensitive in a join code or a game's live scoreboard.
   if (a === 'gjoin') {
