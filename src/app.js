@@ -3484,14 +3484,26 @@ const RUNNER = (()=>{
   document.addEventListener("click",async e=>{
     const el=e.target.closest(".run"); if(!el) return; const t=TASKS[el.dataset.run]; if(!t) return;
     if(e.target.closest("[data-run-go]")){ await exec(el); return; }
-    if(e.target.closest("[data-run-check]")){ el.querySelectorAll(".run-verdict,.run-exp").forEach(x=>x.remove()); const r=await exec(el); if(!r||!r.ok){ if(typeof RUNNER.onCheck==="function") RUNNER.onCheck(el.dataset.run,false); hooks(el.dataset.run,false,el); return; } const good=norm(t.post?r.post:r.out)===norm(t.expected); const out=el.querySelector(".run-out");
+    const isLab=/^(.+@p?\d+):([ALMHX]\d+)$/.test(el.dataset.run);
+    if(e.target.closest("[data-run-check]")){ el.querySelectorAll(".run-verdict,.run-exp,.lx-mark-row").forEach(x=>x.remove()); const r=await exec(el); if(!r||!r.ok){ if(typeof RUNNER.onCheck==="function") RUNNER.onCheck(el.dataset.run,false); hooks(el.dataset.run,isLab?"bad":false,el); return; } const out=el.querySelector(".run-out");
+      if(isLab){
+        (el.querySelector(".run-imgs")||out).insertAdjacentHTML("afterend",`<div class="lx-mark-row" role="group" aria-label="Mark your own work"><p class="lx-mark-q">Compare your output above to the expected output, then mark your own work:</p><button class="btn ok" data-lx-mark="ok">✅ Correct</button><button class="btn warn" data-lx-mark="partial">🟡 Partly correct</button><button class="btn no" data-lx-mark="bad">❌ Incorrect</button></div>`);
+        return;
+      }
+      const good=norm(t.post?r.post:r.out)===norm(t.expected);
       el.querySelectorAll(".run-verdict,.run-exp").forEach(x=>x.remove());
       (el.querySelector(".run-imgs")||out).insertAdjacentHTML("afterend",`<p class="run-verdict ${good?"ok":"no"}">${good?"✅ Correct! Your output matches.":"❌ Not quite. Expected output:"}</p>${good?"":`<pre class="run-exp">${esc(t.expected)}</pre>`}`);
       if(typeof RUNNER.onCheck==="function") RUNNER.onCheck(el.dataset.run,good); hooks(el.dataset.run,good,el);
       if(good&&typeof burst==="function"&&!RM) burst(e.target);
       return; }
+    if(e.target.closest("[data-lx-mark]")){ const btn=e.target.closest("[data-lx-mark]"), mark=btn.dataset.lxMark, row=el.querySelector(".lx-mark-row");
+      const label={ok:"✅ Marked: Correct",partial:"🟡 Marked: Partly correct",bad:"❌ Marked: Incorrect — try again"}[mark];
+      if(row) row.outerHTML=`<p class="run-verdict mark-${mark}">${label}</p>`;
+      if(typeof RUNNER.onCheck==="function") RUNNER.onCheck(el.dataset.run,mark==="ok"); hooks(el.dataset.run,mark,el);
+      if(mark==="ok"&&typeof burst==="function"&&!RM) burst(btn);
+      return; }
     if(e.target.closest("[data-run-sol]")){ el.querySelector(".run-code").value=t.solution; rcSet(el.dataset.run,t.solution); return; }
-    if(e.target.closest("[data-run-reset]")){ el.querySelector(".run-code").value=t.starter||""; rcSet(el.dataset.run,null); el.querySelector(".run-out").textContent=""; el.querySelectorAll(".run-verdict,.run-exp").forEach(x=>x.remove()); return; }
+    if(e.target.closest("[data-run-reset]")){ el.querySelector(".run-code").value=t.starter||""; rcSet(el.dataset.run,null); el.querySelector(".run-out").textContent=""; el.querySelectorAll(".run-verdict,.run-exp,.lx-mark-row").forEach(x=>x.remove()); return; }
   });
   document.addEventListener("keydown",e=>{ const ta=e.target.closest&&e.target.closest(".run-code"); if(!ta) return;
     if(e.key==="Tab"){ e.preventDefault(); const s=ta.selectionStart; ta.setRangeText("    ",s,ta.selectionEnd,"end"); }
@@ -4312,6 +4324,7 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
   const labSt = topic => (store.get("dc-labx",{})[topic])||{};
   function labSave(topic, f){ const m=store.get("dc-labx",{}), o=m[topic]||{}; f(o); m[topic]=o; store.set("dc-labx",m); }
   const isDone = (st,k) => !!(st.done&&st.done[k]);
+  const markOf = (st,k) => isDone(st,k) ? "ok" : ((st.mark&&st.mark[k])||"");
   function labAutoTier(topic, X){
     const st=labSt(topic), n=(X.partA||[]).length; if(!n) return "M";
     let correct=0, neededHelp=false, anyRetry=false;
@@ -4325,13 +4338,14 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
     if(frac<1||anyRetry) return "M";
     return "H";
   }
+  const LX_MARK_LABEL = {ok:"✅ Correct", partial:"🟡 Partly correct", bad:"❌ Incorrect"};
   function labTask(topic, key, q){
-    const st=labSt(topic), id=`${topic}:${key}`, done=isDone(st,key), tries=(st.tries||{})[key]||0, sol=isT()||done||tries>=2;
+    const st=labSt(topic), id=`${topic}:${key}`, mk=markOf(st,key);
     if(typeof RUNNER!=="undefined") RUNNER.register(id,q.run);
-    return `<article class="lx-task ${done?"done":""}" data-lxk="${key}"><header><span class="lx-n">${key[0]==="A"?"A"+key.slice(1):key[0]==="X"?"🏆":key.slice(1)}</span><h4>${esc(q.title)}</h4><em class="lx-ok" ${done?"":"hidden"}>✅ Done</em></header>
-      <div class="page lx-q">${md(q.task)}</div>${q.run.lang==="python"&&!q.run.post&&q.run.expected?`<details class="lx-exp" ${key[0]==="L"||key[0]==="A"?"open":""}><summary>👀 Expected output</summary><pre>${esc(q.run.expected)}</pre></details>`:""}${typeof RUNNER!=="undefined"?RUNNER.box(q.run,id,{nosol:!sol}):""}
+    return `<article class="lx-task ${mk==="ok"?"done":mk?"marked-"+mk:""}" data-lxk="${key}"><header><span class="lx-n">${key[0]==="A"?"A"+key.slice(1):key[0]==="X"?"🏆":key.slice(1)}</span><h4>${esc(q.title)}</h4><em class="lx-ok" ${mk?"":"hidden"}>${LX_MARK_LABEL[mk]||""}</em></header>
+      <div class="page lx-q">${md(q.task)}</div>${q.run.expected!=null?`<details class="lx-exp" open><summary>👀 Expected output</summary><pre>${esc(q.run.expected)}</pre></details>`:""}${typeof RUNNER!=="undefined"?RUNNER.box(q.run,id,{nosol:true}):""}
       ${q.hint?`<details class="cb-hint"><summary>💡 Hint</summary><p>${inline(q.hint)}</p></details>`:""}
-      ${sol?"":`<p class="lx-solnote">Stuck? The solution opens after 2 tries.</p>`}</article>`;
+      <p class="lx-solnote">Run your code, compare your output to the expected output above, then mark your own work.</p></article>`;
   }
   function labSetHTML(topic, X, lv){
     const st=labSt(topic), items=X.sets[lv]||[], n=items.filter((q,j)=>isDone(st,lv+(j+1))).length, nx=lv==="L"?"M":lv==="M"?"H":null, L=LABL[lv], allDone=n===items.length;
@@ -4387,7 +4401,9 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
   }
   function labRefresh(topic){
     const P=cache[topic]; if(!P||!P.s.lab) return; const X=P.s.lab, st=labSt(topic);
-    document.querySelectorAll(".lx-task[data-lxk]").forEach(el=>{ const d=isDone(st,el.dataset.lxk); el.classList.toggle("done",d); const ok=el.querySelector(".lx-ok"); if(ok) ok.hidden=!d; });
+    document.querySelectorAll(".lx-task[data-lxk]").forEach(el=>{ const mk=markOf(st,el.dataset.lxk);
+      el.classList.remove("done","marked-partial","marked-bad"); if(mk==="ok") el.classList.add("done"); else if(mk) el.classList.add("marked-"+mk);
+      const ok=el.querySelector(".lx-ok"); if(ok){ ok.hidden=!mk; ok.textContent=LX_MARK_LABEL[mk]||""; } });
     const an=document.querySelector(".lx-an"); if(an&&!isT()) an.textContent=`${X.partA.filter((q,j)=>isDone(st,"A"+(j+1))).length} of ${X.partA.length} done`;
     document.querySelectorAll(".lx-pick [data-lxlv]").forEach(b=>{ const k=b.dataset.lxlv, c=b.querySelector(".lx-cnt"); if(c) c.textContent=`${(X.sets[k]||[]).filter((q,j)=>isDone(st,k+(j+1))).length} / ${(X.sets[k]||[]).length} done`; });
     const set=document.querySelector(".lx-set"); if(set){ const lv=[...set.classList].find(c=>/^lv[LMH]$/.test(c)).slice(2), n=(X.sets[lv]||[]).filter((q,j)=>isDone(st,lv+(j+1))).length, tot=(X.sets[lv]||[]).length;
@@ -4395,12 +4411,18 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
       if(n===tot&&!set.dataset.cheered){ set.dataset.cheered="1"; if(typeof toast==="function") toast(`🎉 You finished ${LABL[lv][2]}!`); } }
   }
   function labSend(topic, data){ if(isT()) return; try{ const ch=CHBY[topic.split("@")[0]]; CLS.send(data.ev,{course:ch.course.id, chapter:topic, score:data.score, total:1, ans:data.ans}); }catch(e){} }
-  (window.DC_RUN_HOOKS=window.DC_RUN_HOOKS||[]).push((id,good,el)=>{
-    const m=String(id).match(/^(.+@p?\d+):([ALMHX]\d+)$/); if(!m) return; const topic=m[1], key=m[2]; let first=false, stuck=false;
-    labSave(topic,o=>{ o.done=o.done||{}; o.tries=o.tries||{}; if(good){ if(!o.done[key]){ o.done[key]=1; first=true; } } else { o.tries[key]=(o.tries[key]||0)+1; if(o.tries[key]===2&&!o.done[key]) stuck=true; } });
-    if(first) labSend(topic,{ev:"lab",score:1,ans:key}); if(stuck) labSend(topic,{ev:"lab",score:0,ans:key});
-    const st=labSt(topic), card=el&&el.closest(".lx-task");
-    if(card&&(good||((st.tries||{})[key]||0)>=2)&&!card.querySelector("[data-run-sol]")){ const bar=card.querySelector(".run-bar [data-run-reset]"); if(bar) bar.insertAdjacentHTML("beforebegin",`<button class="btn ghost" data-run-sol>Show solution</button>`); const n=card.querySelector(".lx-solnote"); if(n) n.remove(); }
+  (window.DC_RUN_HOOKS=window.DC_RUN_HOOKS||[]).push((id,mark,el)=>{
+    const m=String(id).match(/^(.+@p?\d+):([ALMHX]\d+)$/); if(!m) return; const topic=m[1], key=m[2];
+    if(mark!=="ok"&&mark!=="partial"&&mark!=="bad") return; // ignore boolean calls from non-lab RUNNER tasks
+    let first=false, firstPartial=false, stuckNow=false;
+    labSave(topic,o=>{
+      o.done=o.done||{}; o.tries=o.tries||{}; o.mark=o.mark||{};
+      if(mark==="ok"){ if(!o.done[key]){ o.done[key]=1; first=true; } delete o.mark[key]; }
+      else { delete o.done[key]; if(mark==="partial"&&o.mark[key]!=="partial") firstPartial=true; o.mark[key]=mark; o.tries[key]=(o.tries[key]||0)+1; if(o.tries[key]===2) stuckNow=true; }
+    });
+    if(first) labSend(topic,{ev:"lab",score:1,ans:key});
+    else if(firstPartial) labSend(topic,{ev:"lab",score:0.5,ans:key});
+    else if(stuckNow) labSend(topic,{ev:"lab",score:0,ans:key});
     labRefresh(topic);
   });
   function stageHTML(stage, ch, i, P){
@@ -4525,14 +4547,14 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
   }
   function labLive(R, S){
     const X=S.lab, who={};
-    const get=r=>{ const k=r.sid||r.name; return who[k]=who[k]||{name:r.name||"–",lv:null,done:new Set(),stuck:new Set(),sol:new Set()}; };
+    const get=r=>{ const k=r.sid||r.name; return who[k]=who[k]||{name:r.name||"–",lv:null,done:new Set(),partial:new Set(),stuck:new Set()}; };
     R.lablv.forEach(r=>{ get(r).lv=String(r.ans); });
-    R.lab.forEach(r=>{ const w=get(r), a=String(r.ans); if(a[0]==="S") w.sol.add(a.slice(1)); else if(+r.score>=1) w.done.add(a); else w.stuck.add(a); });
+    R.lab.forEach(r=>{ const w=get(r), a=String(r.ans), sc=+r.score; if(sc>=1) w.done.add(a); else if(sc===0.5) w.partial.add(a); else w.stuck.add(a); });
     const rows=Object.values(who).sort((a,b)=>a.name.localeCompare(b.name)), cnt=k=>rows.filter(w=>w.lv===k).length;
     const nA=X.partA.length;
     return `<div class="tc-lr lx-live"><b>🧪 Lab work</b><span>${rows.length} students · ${"LMH".split("").map(k=>`${LABL[k][0]} ${LABL[k][1]}: ${cnt(k)}`).join(" · ")}${rows.filter(w=>!w.lv).length?` · no set yet: ${rows.filter(w=>!w.lv).length}`:""}</span>
-      ${rows.length?`<div class="tbl"><table class="lx-tbl"><thead><tr><th>Student</th><th>Set</th><th>Part A</th><th>Set tasks done</th><th>Stuck on</th><th>Solutions seen</th></tr></thead><tbody>${rows.map(w=>{ const lv=w.lv, setDone=lv?[...w.done].filter(k=>k[0]===lv).length:0, tot=lv?(X.sets[lv]||[]).length:0, st=[...w.stuck].filter(k=>!w.done.has(k));
-        return `<tr><th>${esc(w.name)}</th><td>${lv?`${LABL[lv][0]} ${LABL[lv][1]}`:"–"}</td><td>${[...w.done].filter(k=>k[0]==="A").length} / ${nA}</td><td>${lv?`<span class="lx-mini"><i style="width:${Math.round(setDone/tot*100)}%"></i></span> ${setDone} / ${tot}`:"–"}${[...w.done].filter(k=>k[0]!=="A"&&k[0]!==lv).length?` <small>(+${[...w.done].filter(k=>k[0]!=="A"&&k[0]!==lv).length} other set)</small>`:""}</td><td>${st.length?st.map(k=>`<span class="lx-tag">${k}</span>`).join(" "):"–"}</td><td>${w.sol.size?[...w.sol].map(k=>`<span class="lx-tag s">${k}</span>`).join(" "):"–"}</td></tr>`; }).join("")}</tbody></table></div><small>Task codes: A1 = Part A task 1, L3 = Foundation task 3, M5 = Intermediate task 5, H2 = Advanced task 2. “Stuck on” = 2 wrong checks and not solved yet.</small>`:`<small>No lab answers yet.</small>`}</div>`;
+      ${rows.length?`<div class="tbl"><table class="lx-tbl"><thead><tr><th>Student</th><th>Set</th><th>Part A</th><th>Set tasks done</th><th>Stuck on</th><th>Partly correct</th></tr></thead><tbody>${rows.map(w=>{ const lv=w.lv, setDone=lv?[...w.done].filter(k=>k[0]===lv).length:0, tot=lv?(X.sets[lv]||[]).length:0, st=[...w.stuck].filter(k=>!w.done.has(k)&&!w.partial.has(k)), pt=[...w.partial].filter(k=>!w.done.has(k));
+        return `<tr><th>${esc(w.name)}</th><td>${lv?`${LABL[lv][0]} ${LABL[lv][1]}`:"–"}</td><td>${[...w.done].filter(k=>k[0]==="A").length} / ${nA}</td><td>${lv?`<span class="lx-mini"><i style="width:${Math.round(setDone/tot*100)}%"></i></span> ${setDone} / ${tot}`:"–"}${[...w.done].filter(k=>k[0]!=="A"&&k[0]!==lv).length?` <small>(+${[...w.done].filter(k=>k[0]!=="A"&&k[0]!==lv).length} other set)</small>`:""}</td><td>${st.length?st.map(k=>`<span class="lx-tag">${k}</span>`).join(" "):"–"}</td><td>${pt.length?pt.map(k=>`<span class="lx-tag warn">${k}</span>`).join(" "):"–"}</td></tr>`; }).join("")}</tbody></table></div><small>Task codes: A1 = Part A task 1, L3 = Foundation task 3, M5 = Intermediate task 5, H2 = Advanced task 2. Students mark their own work (solutions aren't shown); “Stuck on” = 2+ tries without marking it correct or partly correct.</small>`:`<small>No lab answers yet.</small>`}</div>`;
   }
   function renderLive(R, topic){
     setGroupsFor(topic);
@@ -4581,8 +4603,6 @@ async function lpDownloadLessonPlan(topic, ch, c, i){
       TLV[topic]=k;
       const pick=document.querySelector(".lx-pick"); if(pick) pick.outerHTML=labPick(topic,P.s.lab,k);
       const w=document.querySelector(".lx-setwrap"); if(w){ w.innerHTML=labSetHTML(topic,P.s.lab,k); if(lxl.closest(".lx-next")) w.scrollIntoView({behavior:RM?"auto":"smooth",block:"start"}); } return; }
-    const lxs=t.closest(".lx-task [data-run-sol]"); if(lxs&&!isT()){ const card=lxs.closest(".lx-task"), topic=(document.getElementById("tcStage")||{dataset:{}}).dataset.topic, key=card.dataset.lxk;
-      let first=false; labSave(topic,o=>{ o.sol=o.sol||{}; if(!o.sol[key]){ o.sol[key]=1; first=true; } }); if(first) labSend(topic,{ev:"lab",score:0,ans:"S"+key}); }
     const sg=t.closest("[data-tc-stage]"); if(sg){ STAGE=sg.dataset.tcStage; document.querySelectorAll("[data-tc-stage]").forEach(b=>b.classList.toggle("on",b===sg)); const st=stg((document.getElementById("tcStage")||{dataset:{}}).dataset.topic).find(s=>s[0]===STAGE); if(isT()&&st) startTimer(st[3]); fill(); return; }
     const tg=t.closest("[data-tc-toggle]"); if(tg){ const k=tg.dataset.tcToggle, on=!OPEN[k]; tg.disabled=true; try{ await setOpen(k,on); if(typeof toast==="function") toast(on?"▶ Lesson started: students can open it now":"🔒 Lesson locked"); }catch(err){ if(typeof toast==="function") toast(err.message); } rerender(); return; }
     const lv=t.closest("[data-tc-live]"); if(lv){ const k=lv.dataset.tcLive; const box=document.getElementById("tcLive"); if(box) box.innerHTML=`<p class="meta">Loading results…</p>`; try{ renderLive(await liveResults(k),k); if(box) box.scrollIntoView({behavior:"smooth",block:"start"}); }catch(err){ if(box) box.innerHTML=`<p class="meta">⚠️ ${esc(err.message)}</p>`; }
