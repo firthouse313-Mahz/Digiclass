@@ -102,3 +102,14 @@ code (students) or PIN (teacher). To deploy your own:
    own real values — then **never commit that filled-in copy anywhere**.
 4. Deploy → New deployment → Web app → Execute as: Me, Who has access:
    Anyone → Deploy, and copy the Web app URL into the app's config.
+
+**Python Legends (the "Digi Game" link) uses this same script and Sheet**,
+through its own `plclaim` (name+PIN login), `plload`, and `plsave`
+actions — a separate "PL Students" roster and "PL Progress" sheet, with
+no connection to a student's DigiClass identity or PIN. If you already
+have this script deployed, you only need to: paste the updated
+`sheet-script-template.gs` over your real (secrets-filled) copy in
+Extensions → Apps Script, keeping your real `TEACHER_PIN`/`CLASS_CODE`/
+`LEARN_KEY`/`KEYS` values in place, then Deploy → Manage deployments →
+✏️ Edit → Version: New version → Deploy. The Web app URL stays the same,
+so nothing else needs updating.

@@ -47,6 +47,16 @@ const FEEDBACK_HEADERS = ['Time', 'Name', 'Class', 'Type', 'Reason', 'Message', 
 // never the PIN itself — so a classmate can't log in as someone else just by typing their name.
 const STUDENT_HEADERS = ['Name', 'Salt', 'Hash', 'Student ID', 'Class', 'Subject', 'Boy/Girl', 'First seen'];
 
+// Python Legends (the "Digi Game" link) is a SEPARATE account system from DigiClass itself —
+// a student's DigiClass login does not carry over, and a Python Legends PIN does not unlock
+// DigiClass. Same salted-hash pattern as STUDENT_HEADERS above, in their own sheet, so the two
+// rosters never mix.
+const PL_STUDENT_HEADERS = ['Name', 'Salt', 'Hash', 'Student ID', 'First seen'];
+// One row per student (by Student ID); Progress is a single JSON blob (XP, coins, completed
+// level/bonus ids, pathway) — small enough that one cell per student is simplest, and the whole
+// game state is always written and read as one piece anyway.
+const PL_PROGRESS_HEADERS = ['Student ID', 'Progress JSON', 'Updated'];
+
 // DigiClass Teach: one pair of keys per lesson topic [student key, teacher key].
 // Students only receive a lesson's student key after you press "Start lesson".
 // Do not share this script or these keys.
@@ -129,6 +139,14 @@ function findStudentRow_(sh, nameNorm) {
   for (let i = 0; i < names.length; i++) { if (norm_(names[i][0]) === nameNorm) return i + 2; }
   return -1;
 }
+// Generic version of findStudentRow_ for sheets keyed by a column other than 1 (e.g. "PL Progress",
+// keyed by Student ID in column 1 too, but kept separate since the two rosters must never cross).
+function findRowByCol_(sh, col, value) {
+  if (sh.getLastRow() < 2) return -1;
+  const vals = sh.getRange(2, col, sh.getLastRow() - 1, 1).getValues();
+  for (let i = 0; i < vals.length; i++) { if (String(vals[i][0]) === value) return i + 2; }
+  return -1;
+}
 
 // Lessons the teacher has started (stored in the script's own settings).
 function groups_() {
@@ -177,6 +195,20 @@ function doPost(e) {
           });
           resp = { ok: true, code: code };
         }
+      }
+    } else if (d.kind === 'plsave') {
+      // Python Legends pushing its current progress snapshot after a level/boss completion.
+      // The whole state is sent each time (it's tiny — a handful of ids and numbers), so this
+      // is a plain upsert, never a partial merge that could drift from the client's real state.
+      const sid = String(d.sid || '').trim();
+      const json = JSON.stringify(d.progress || {});
+      if (!sid || json.length > 8000) {
+        resp = { error: sid ? 'toolarge' : 'sid' };
+      } else {
+        const sh = sheet_('PL Progress', PL_PROGRESS_HEADERS);
+        const row = findRowByCol_(sh, 1, sid);
+        if (row < 0) sh.appendRow([sid, json, new Date()]);
+        else sh.getRange(row, 1, 1, PL_PROGRESS_HEADERS.length).setValues([[sid, json, new Date()]]);
       }
     } else if (d.kind === 'feedback') {
       sheet_(subjSheet_('Feedback', d.sub), FEEDBACK_HEADERS).appendRow([
@@ -269,6 +301,59 @@ function doGet(e) {
       try { lock.releaseLock(); } catch (e2) {}
       return out_({ error: String(err) });
     }
+  }
+  // Python Legends' own login — same first-time-sets-it, every-time-after-must-match PIN pattern
+  // as 'claim' above, but in the separate "PL Students" roster so this account has nothing to do
+  // with the student's DigiClass identity.
+  if (a === 'plclaim') {
+    const nameRaw = String(p.name || '').slice(0, 40), pin = String(p.pin || '').trim();
+    const nameNorm = norm_(nameRaw);
+    if (!nameNorm || pin.length < 4) return out_({ error: 'short' });
+    const cache = CacheService.getScriptCache();
+    const failKey = 'plpf_' + nameNorm;
+    const fails = Number(cache.get(failKey) || 0);
+    if (fails >= 8) return out_({ error: 'busy' });
+    const lock = LockService.getScriptLock();
+    lock.waitLock(25000);
+    try {
+      const sh = sheet_('PL Students', PL_STUDENT_HEADERS);
+      const row = findStudentRow_(sh, nameNorm);
+      if (row < 0) {
+        const salt = Utilities.getUuid();
+        const hash = hashPin_(pin, salt);
+        const sid = Utilities.getUuid().slice(0, 8);
+        sh.appendRow([nameRaw, salt, hash, sid, new Date()]);
+        lock.releaseLock();
+        return out_({ ok: true, sid: sid, created: true });
+      }
+      const vals = sh.getRange(row, 1, 1, PL_STUDENT_HEADERS.length).getValues()[0];
+      const salt = vals[1], hash = vals[2], sid = vals[3];
+      if (hashPin_(pin, salt) === hash) {
+        cache.remove(failKey);
+        lock.releaseLock();
+        return out_({ ok: true, sid: sid, created: false });
+      }
+      cache.put(failKey, String(fails + 1), 600);
+      lock.releaseLock();
+      return out_({ error: 'pin' });
+    } catch (err) {
+      try { lock.releaseLock(); } catch (e2) {}
+      return out_({ error: String(err) });
+    }
+  }
+  // A logged-in Python Legends session asking for its saved progress (XP, coins, completed
+  // levels/bonuses, pathway) so it can resume on whatever device this is, not just this browser.
+  // No progress saved yet (brand-new account) is a normal, non-error case: progress: null.
+  if (a === 'plload') {
+    const sid = String(p.sid || '').trim();
+    if (!sid) return out_({ error: 'sid' });
+    const sh = sheet_('PL Progress', PL_PROGRESS_HEADERS);
+    const row = findRowByCol_(sh, 1, sid);
+    if (row < 0) return out_({ ok: true, progress: null });
+    const json = sh.getRange(row, 2, 1, 1).getValues()[0][0];
+    let progress = null;
+    try { progress = JSON.parse(json); } catch (e) { progress = null; }
+    return out_({ ok: true, progress: progress });
   }
   // Teacher-only: a student mistyped their PIN too many times and is locked out for up to
   // 10 minutes ("too many tries"), or has genuinely forgotten their PIN. &name= is the student's

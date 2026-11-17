@@ -1197,7 +1197,7 @@ function navTo(key){
   else if(key==="subjects") go({name:"subjects"});
   else if(key.startsWith("class")) go({name:"grade",grade:+key.slice(5)});
   else if(key==="practice"||key==="quizzes") go({name:"practicehub",pc:store.get("cs-lastcourse",null)});
-  else if(key==="game") go({name:"game"});
+  else if(key==="game") window.open(GAME_URL, "_blank", "noopener");
   else if(key==="me"||key==="resources") go({name:"me"});
 }
 $("mainnav").addEventListener("click",e=>{ const b=e.target.closest("[data-nav]"); if(b) navTo(b.dataset.nav); });
@@ -1550,7 +1550,14 @@ function render(v, keepScroll){
     case "saved": html=vSaved(); break;
     case "teacher": html=DCP.vTeacher(); break;
     case "teach": html=TEACH.view(v); break;
-    case "game": html=`<section class="dg-soon" aria-label="Digi Game"><h2>🛠️ Digi Game</h2><p>This is being rebuilt from scratch. Check back soon!</p></section>`; break;
+    case "game":
+      // Reached only via a bookmarked/typed #/game link now that the hero card and nav link
+      // straight out to GAME_URL — send them on, with a manual link in case the popup/redirect
+      // is blocked, then go back to Home so #/game doesn't stay stuck in the address bar.
+      window.open(GAME_URL, "_blank", "noopener");
+      location.hash = "#/";
+      html=`<section class="dg-soon" aria-label="Digi Game"><h2>🎮 Digi Game</h2><p>Opening Python Legends in a new tab… <a href="${GAME_URL}" target="_blank" rel="noopener">Click here</a> if it didn't open.</p></section>`;
+      break;
     case "practice": html=vPractice(BYID[v.course]); break;
     case "paper": html=vPaper(BYID[v.course], v.paper); break;
     case "papers": html=vPapersList(BYID[v.course]); break;
@@ -2251,6 +2258,11 @@ function labT(cid,si){ const L=(typeof PRAC!=="undefined"&&PRAC[cid])||[]; retur
    - Teacher dashboard (#/teacher) reads it back with a PIN.
    - Points and badges are calculated from the student's real activity.
    ===================================================================== */
+// "Digi Game" is Python Legends — a separate app (own repo, own GitHub Pages
+// deploy, own account system: see sheet-script-template.gs's plclaim/plload/
+// plsave actions) rather than a page inside DigiClass. It opens in a new tab
+// so DigiClass stays open behind it.
+const GAME_URL = "https://firthouse313-mahz.github.io/python-legends/";
 const DC_CLASS = {
   // Paste the Google Apps Script "Web app URL" here (ends with /exec):
   endpoint: "https://script.google.com/macros/s/AKfycbzpEpFmRbIbacu4-BgICaT3ZN8TIwOgti8pT76gmNmftQbSbJoErzM86G4ikxHgZEfFcg/exec",
@@ -2382,7 +2394,7 @@ const CLS = (()=>{
       <p class="dh-sub">Where do you want to go today?</p>
       <div class="dh-go"><a class="dh-b learn" href="${learnTo}"><span class="dh-i" aria-hidden="true">📘</span><b>Digi Learn</b><small>Study on your own: notes, examples, code practice and quizzes</small></a>
       <a class="dh-b teach" href="#/teach"><span class="dh-i" aria-hidden="true">🏫</span><b>Digi Teach</b><small>Today's class lesson, when your teacher starts it</small></a>
-      <a class="dh-b game soon" href="#/game"><span class="dh-i" aria-hidden="true">🛠️</span><b>Digi Game</b><small>Coming soon — being rebuilt</small></a></div></section>`;
+      <a class="dh-b game" target="_blank" rel="noopener" href="${GAME_URL}"><span class="dh-i" aria-hidden="true">🎮</span><b>Digi Game</b><small>Python Legends — play now, opens in a new tab</small></a></div></section>`;
     }
     const pv = m||{};
     return `<section class="join reveal" aria-label="Join your class">
