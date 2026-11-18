@@ -1197,7 +1197,7 @@ function navTo(key){
   else if(key==="subjects") go({name:"subjects"});
   else if(key.startsWith("class")) go({name:"grade",grade:+key.slice(5)});
   else if(key==="practice"||key==="quizzes") go({name:"practicehub",pc:store.get("cs-lastcourse",null)});
-  else if(key==="game") window.open(GAME_URL, "_blank", "noopener");
+  else if(key==="game") go({name:"game"});
   else if(key==="me"||key==="resources") go({name:"me"});
 }
 $("mainnav").addEventListener("click",e=>{ const b=e.target.closest("[data-nav]"); if(b) navTo(b.dataset.nav); });
@@ -1551,12 +1551,15 @@ function render(v, keepScroll){
     case "teacher": html=DCP.vTeacher(); break;
     case "teach": html=TEACH.view(v); break;
     case "game":
-      // Reached only via a bookmarked/typed #/game link now that the hero card and nav link
-      // straight out to GAME_URL — send them on, with a manual link in case the popup/redirect
-      // is blocked, then go back to Home so #/game doesn't stay stuck in the address bar.
-      window.open(GAME_URL, "_blank", "noopener");
-      location.hash = "#/";
-      html=`<section class="dg-soon" aria-label="Digi Game"><h2>🎮 Digi Game</h2><p>Opening Python Legends in a new tab… <a href="${GAME_URL}" target="_blank" rel="noopener">Click here</a> if it didn't open.</p></section>`;
+      // Embedded in-page (an <iframe>), not a new tab/redirect — some students and parents
+      // read "it opens another website" as a safety red flag, even though it's the same
+      // DigiClass-built game just hosted on GitHub Pages. Keeping it inside DigiClass's own
+      // page means the address bar never changes. The "Open in a new tab" link stays
+      // available for the rare case embedding is blocked (or someone wants a bigger window).
+      html=`<section class="dg-embed" aria-label="Digi Game">
+        <div class="dg-embed-top"><h2>🎮 Digi Game — Python Legends</h2><a class="dg-embed-ext" href="${GAME_URL}" target="_blank" rel="noopener">Open in a new tab ↗</a></div>
+        <iframe class="dg-embed-frame" src="${GAME_URL}" title="Python Legends" allow="autoplay"></iframe>
+      </section>`;
       break;
     case "practice": html=vPractice(BYID[v.course]); break;
     case "paper": html=vPaper(BYID[v.course], v.paper); break;
@@ -2394,7 +2397,7 @@ const CLS = (()=>{
       <p class="dh-sub">Where do you want to go today?</p>
       <div class="dh-go"><a class="dh-b learn" href="${learnTo}"><span class="dh-i" aria-hidden="true">📘</span><b>Digi Learn</b><small>Study on your own: notes, examples, code practice and quizzes</small></a>
       <a class="dh-b teach" href="#/teach"><span class="dh-i" aria-hidden="true">🏫</span><b>Digi Teach</b><small>Today's class lesson, when your teacher starts it</small></a>
-      <a class="dh-b game" target="_blank" rel="noopener" href="${GAME_URL}"><span class="dh-i" aria-hidden="true">🎮</span><b>Digi Game</b><small>Python Legends — play now, opens in a new tab</small></a></div></section>`;
+      <a class="dh-b game" href="#/game"><span class="dh-i" aria-hidden="true">🎮</span><b>Digi Game</b><small>Python Legends — play right here, no new tab</small></a></div></section>`;
     }
     const pv = m||{};
     return `<section class="join reveal" aria-label="Join your class">
