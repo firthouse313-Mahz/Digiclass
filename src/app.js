@@ -1135,7 +1135,7 @@ function hashFor(v){
     case "unit": return `#/${v.course}/unit/${v.unit}`;
     case "chapter": return `#/${CHBY[v.id].course.id}/ch/${v.id}${v.q?"/q/"+v.q:""}`;
     case "teacher": return "#/teacher";
-    case "game": return "#/game";
+    case "game": return v.which?`#/game/${v.which}`:"#/game";
     case "teach": return "#/teach"+(v.course?"/"+v.course+(v.ch?"/"+v.ch+"/"+v.t:""):"");
     case "practice": return `#/${v.course}/practice`;
     case "paper": return v.paper?`#/${v.course}/paper/${v.paper}`:`#/${v.course}/paper`;
@@ -1147,7 +1147,7 @@ function parseHash(){
   const p = location.hash.replace(/^#\/?/,"").split("/").filter(Boolean);
   if(!p.length) return {name:"courses"};
   if(p[0]==="saved") return {name:"saved"};
-  if(p[0]==="game") return {name:"game"};
+  if(p[0]==="game") return {name:"game",which:(p[1]==="python"||p[1]==="sql")?p[1]:null};
   if(p[0]==="teacher") return {name:"teacher"};
   if(p[0]==="teach") return {name:"teach",course:BYID[p[1]]?p[1]:null,ch:CHBY[p[2]]?p[2]:null,t:p[3]!=null?(/^p\d+$/.test(p[3])?p[3]:(!isNaN(+p[3])?+p[3]:null)):null};
   if(p[0]==="subjects"||p[0]==="classes") return {name:"subjects"};
@@ -1550,17 +1550,7 @@ function render(v, keepScroll){
     case "saved": html=vSaved(); break;
     case "teacher": html=DCP.vTeacher(); break;
     case "teach": html=TEACH.view(v); break;
-    case "game":
-      // Embedded in-page (an <iframe>), not a new tab/redirect — some students and parents
-      // read "it opens another website" as a safety red flag, even though it's the same
-      // DigiClass-built game just hosted on GitHub Pages. Keeping it inside DigiClass's own
-      // page means the address bar never changes. The "Open in a new tab" link stays
-      // available for the rare case embedding is blocked (or someone wants a bigger window).
-      html=`<section class="dg-embed" aria-label="Digi Game">
-        <div class="dg-embed-top"><h2>🎮 Digi Game — Python Legends</h2><a class="dg-embed-ext" href="${GAME_URL}" target="_blank" rel="noopener">Open in a new tab ↗</a></div>
-        <iframe class="dg-embed-frame" src="${GAME_URL}" title="Python Legends" allow="autoplay"></iframe>
-      </section>`;
-      break;
+    case "game": html=vGame(v.which); break;
     case "practice": html=vPractice(BYID[v.course]); break;
     case "paper": html=vPaper(BYID[v.course], v.paper); break;
     case "papers": html=vPapersList(BYID[v.course]); break;
@@ -2261,11 +2251,74 @@ function labT(cid,si){ const L=(typeof PRAC!=="undefined"&&PRAC[cid])||[]; retur
    - Teacher dashboard (#/teacher) reads it back with a PIN.
    - Points and badges are calculated from the student's real activity.
    ===================================================================== */
-// "Digi Game" is Python Legends — a separate app (own repo, own GitHub Pages
-// deploy, own account system: see sheet-script-template.gs's plclaim/plload/
-// plsave actions) rather than a page inside DigiClass. It opens in a new tab
-// so DigiClass stays open behind it.
-const GAME_URL = "https://firthouse313-mahz.github.io/python-legends/";
+// "Digi Game" is a small roster of separate games (own repo, own GitHub
+// Pages deploy, own account system per game — see sheet-script-template.gs's
+// pl*/sql* actions) rather than pages inside DigiClass. #/game shows a
+// picker; #/game/<id> embeds the chosen one in-page via an <iframe>, never
+// a new-tab redirect, so students and parents never see the address bar
+// change to an unfamiliar domain. Adding a future game (e.g. "AI Legends")
+// is just one more entry here plus its own pl*-style actions on the backend.
+// Each badge is drawn from that game's OWN visual identity (the same
+// SVG emblem shown inside Python Legends' and SQL Legends' own login/map
+// screens — see each game's src/ui/Emblem.tsx) rather than a borrowed
+// stock emoji (🐍 / 🍄) standing in for a real logo.
+const GAME_BADGES = {
+  python: `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <circle cx="24" cy="24" r="23" fill="url(#dg-pl-bg)" stroke="#1c6b2e" stroke-width="2"/>
+    <g fill="#eafff0" fill-opacity="0.95">
+      <path d="M17 29l-6 10h13l-6-10z"/><path d="M17 21l-7 11.5h14L17 21z"/>
+      <path d="M31 25l-6.5 11h13L31 25z"/><path d="M31 16l-8 13h16l-8-13z"/>
+    </g>
+    <rect x="15.5" y="37.5" width="3" height="5.5" rx="1" fill="#eafff0" fill-opacity="0.8"/>
+    <rect x="29.5" y="37.5" width="3" height="5.5" rx="1" fill="#eafff0" fill-opacity="0.8"/>
+    <defs><linearGradient id="dg-pl-bg" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse"><stop stop-color="#7de37d"/><stop offset="1" stop-color="#2fae4a"/></linearGradient></defs>
+  </svg>`,
+  sql: `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <circle cx="24" cy="24" r="23" fill="url(#dg-sl-bg)" stroke="#a85e00" stroke-width="2"/>
+    <rect x="10" y="13" width="22" height="22" rx="2.5" fill="#fffdf6" stroke="#7a5200" stroke-width="2"/>
+    <line x1="10" y1="20.3" x2="32" y2="20.3" stroke="#e3cf9a" stroke-width="1.6"/>
+    <line x1="10" y1="27.6" x2="32" y2="27.6" stroke="#e3cf9a" stroke-width="1.6"/>
+    <line x1="17.3" y1="13" x2="17.3" y2="35" stroke="#e3cf9a" stroke-width="1.6"/>
+    <line x1="24.6" y1="13" x2="24.6" y2="35" stroke="#e3cf9a" stroke-width="1.6"/>
+    <rect x="10" y="13" width="7.3" height="22" fill="#ffe8a3" fill-opacity="0.6"/>
+    <g transform="translate(29 29) rotate(45)">
+      <circle cx="0" cy="0" r="5" fill="#2fae4a" stroke="#176b2c" stroke-width="1.6"/>
+      <circle cx="0" cy="0" r="1.8" fill="#fffdf6"/>
+      <rect x="-1.1" y="4.2" width="2.2" height="7" rx="1" fill="#2fae4a" stroke="#176b2c" stroke-width="1.3"/>
+      <rect x="-3" y="9" width="2.4" height="2.4" fill="#2fae4a" stroke="#176b2c" stroke-width="1.1"/>
+    </g>
+    <defs><linearGradient id="dg-sl-bg" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse"><stop stop-color="#ffd34d"/><stop offset="1" stop-color="#f5a623"/></linearGradient></defs>
+  </svg>`,
+};
+const GAMES = {
+  python: { id:"python", name:"Python Legends", tagline:"Fantasy adventure — jump, slide and code your way through a Python curriculum.", url:"https://firthouse313-mahz.github.io/python-legends/" },
+  sql:    { id:"sql",    name:"SQL Legends",    tagline:"2D platform adventure — collect coins and query your way through Database Island.", url:"https://firthouse313-mahz.github.io/sql-legends/" },
+};
+function vGame(which){
+  const g = which && GAMES[which];
+  if(!g){
+    return `<section class="dg-pick" aria-label="Digi Game">
+      <h2>🎮 Digi Game</h2>
+      <p class="dg-pick-sub">Pick a world to play — your name and progress are kept separately for each game.</p>
+      <div class="dg-pick-grid">
+        ${Object.values(GAMES).map(game=>`
+          <a class="dg-pick-card" href="#/game/${game.id}">
+            <span class="dg-pick-badge">${GAME_BADGES[game.id]}</span>
+            <b>${esc(game.name)}</b>
+            <small>${esc(game.tagline)}</small>
+          </a>`).join("")}
+      </div>
+    </section>`;
+  }
+  return `<section class="dg-embed" aria-label="Digi Game">
+    <div class="dg-embed-top">
+      <a class="dg-embed-back" href="#/game">← Choose a different game</a>
+      <h2><span class="dg-embed-badge">${GAME_BADGES[g.id]}</span>${esc(g.name)}</h2>
+      <a class="dg-embed-ext" href="${g.url}" target="_blank" rel="noopener">Open in a new tab ↗</a>
+    </div>
+    <iframe class="dg-embed-frame" src="${g.url}" title="${esc(g.name)}" allow="autoplay"></iframe>
+  </section>`;
+}
 const DC_CLASS = {
   // Paste the Google Apps Script "Web app URL" here (ends with /exec):
   endpoint: "https://script.google.com/macros/s/AKfycbzpEpFmRbIbacu4-BgICaT3ZN8TIwOgti8pT76gmNmftQbSbJoErzM86G4ikxHgZEfFcg/exec",
@@ -2397,7 +2450,7 @@ const CLS = (()=>{
       <p class="dh-sub">Where do you want to go today?</p>
       <div class="dh-go"><a class="dh-b learn" href="${learnTo}"><span class="dh-i" aria-hidden="true">📘</span><b>Digi Learn</b><small>Study on your own: notes, examples, code practice and quizzes</small></a>
       <a class="dh-b teach" href="#/teach"><span class="dh-i" aria-hidden="true">🏫</span><b>Digi Teach</b><small>Today's class lesson, when your teacher starts it</small></a>
-      <a class="dh-b game" href="#/game"><span class="dh-i" aria-hidden="true">🎮</span><b>Digi Game</b><small>Python Legends — play right here, no new tab</small></a></div></section>`;
+      <a class="dh-b game" href="#/game"><span class="dh-i" aria-hidden="true">🎮</span><b>Digi Game</b><small>Python Legends &amp; SQL Legends — play right here, no new tab</small></a></div></section>`;
     }
     const pv = m||{};
     return `<section class="join reveal" aria-label="Join your class">

@@ -2669,10 +2669,24 @@ html[data-theme="light"] .page ul.pts>li{box-shadow:0 6px 16px -14px rgba(11,45,
 .lq-meter-fill{height:100%;background:linear-gradient(90deg,#34c759,#0bd1c0);transition:width .4s ease}
 </style>
 <style id="dg-embed-css">
-/* ---- Digi Game: Python Legends embedded in-page, not a new tab ---- */
+/* ---- Digi Game: a picker between games, then each embedded in-page (never a new tab) ---- */
+.dg-pick{margin-top:10px}
+.dg-pick h2{margin:0 0 4px;font-size:1.2rem;color:var(--ink)}
+.dg-pick-sub{margin:0 0 16px;color:var(--soft);font-size:.92rem}
+.dg-pick-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.dg-pick-card{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:18px 20px;border:1px solid var(--line);border-radius:var(--radius);background:var(--card);text-decoration:none;color:var(--ink);transition:transform .15s ease,box-shadow .15s ease}
+.dg-pick-card:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(0,0,0,.08)}
+.dg-pick-badge{width:40px;height:40px}
+.dg-pick-badge svg{width:100%;height:100%;display:block}
+.dg-pick-card b{font-size:1.05rem}
+.dg-pick-card small{color:var(--soft);line-height:1.4}
 .dg-embed{display:flex;flex-direction:column;gap:10px;margin-top:10px}
 .dg-embed-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.dg-embed-top h2{margin:0;font-size:1.15rem;color:var(--ink)}
+.dg-embed-top h2{margin:0;font-size:1.15rem;color:var(--ink);display:flex;align-items:center;gap:8px}
+.dg-embed-badge{width:24px;height:24px;flex:0 0 auto}
+.dg-embed-badge svg{width:100%;height:100%;display:block}
+.dg-embed-back{font:700 .8rem inherit;color:var(--soft);text-decoration:none;white-space:nowrap;margin-right:auto}
+.dg-embed-back:hover{text-decoration:underline}
 .dg-embed-ext{font:700 .85rem inherit;color:var(--og);text-decoration:none;white-space:nowrap}
 .dg-embed-ext:hover{text-decoration:underline}
 .dg-embed-frame{width:100%;height:min(820px,calc(100vh - 190px));min-height:460px;border:1px solid var(--line);border-radius:var(--radius);background:#070b14}

@@ -57,6 +57,13 @@ const PL_STUDENT_HEADERS = ['Name', 'Salt', 'Hash', 'Student ID', 'First seen'];
 // game state is always written and read as one piece anyway.
 const PL_PROGRESS_HEADERS = ['Student ID', 'Progress JSON', 'Updated'];
 
+// SQL Legends (the "Digi Game" selector's second game) — same idea as Python
+// Legends above: its own separate account roster and progress store, in its
+// own sheets, so a student playing both games under the same name never has
+// one game's progress collide with or overwrite the other's.
+const SQL_STUDENT_HEADERS = ['Name', 'Salt', 'Hash', 'Student ID', 'First seen'];
+const SQL_PROGRESS_HEADERS = ['Student ID', 'Progress JSON', 'Updated'];
+
 // DigiClass Teach: one pair of keys per lesson topic [student key, teacher key].
 // Students only receive a lesson's student key after you press "Start lesson".
 // Do not share this script or these keys.
@@ -210,6 +217,18 @@ function doPost(e) {
         if (row < 0) sh.appendRow([sid, json, new Date()]);
         else sh.getRange(row, 1, 1, PL_PROGRESS_HEADERS.length).setValues([[sid, json, new Date()]]);
       }
+    } else if (d.kind === 'sqlsave') {
+      // SQL Legends pushing its current progress snapshot — same upsert pattern as plsave above.
+      const sid = String(d.sid || '').trim();
+      const json = JSON.stringify(d.progress || {});
+      if (!sid || json.length > 8000) {
+        resp = { error: sid ? 'toolarge' : 'sid' };
+      } else {
+        const sh = sheet_('SQL Progress', SQL_PROGRESS_HEADERS);
+        const row = findRowByCol_(sh, 1, sid);
+        if (row < 0) sh.appendRow([sid, json, new Date()]);
+        else sh.getRange(row, 1, 1, SQL_PROGRESS_HEADERS.length).setValues([[sid, json, new Date()]]);
+      }
     } else if (d.kind === 'feedback') {
       sheet_(subjSheet_('Feedback', d.sub), FEEDBACK_HEADERS).appendRow([
         new Date(), clean_(d.name, 40), clean_(d.cls, 5), clean_(d.type, 20), clean_(d.reason, 40),
@@ -348,6 +367,55 @@ function doGet(e) {
     const sid = String(p.sid || '').trim();
     if (!sid) return out_({ error: 'sid' });
     const sh = sheet_('PL Progress', PL_PROGRESS_HEADERS);
+    const row = findRowByCol_(sh, 1, sid);
+    if (row < 0) return out_({ ok: true, progress: null });
+    const json = sh.getRange(row, 2, 1, 1).getValues()[0][0];
+    let progress = null;
+    try { progress = JSON.parse(json); } catch (e) { progress = null; }
+    return out_({ ok: true, progress: progress });
+  }
+  // SQL Legends' own login — same pattern as plclaim above, its own "SQL Students" roster.
+  if (a === 'sqlclaim') {
+    const nameRaw = String(p.name || '').slice(0, 40), pin = String(p.pin || '').trim();
+    const nameNorm = norm_(nameRaw);
+    if (!nameNorm || pin.length < 4) return out_({ error: 'short' });
+    const cache = CacheService.getScriptCache();
+    const failKey = 'sqlpf_' + nameNorm;
+    const fails = Number(cache.get(failKey) || 0);
+    if (fails >= 8) return out_({ error: 'busy' });
+    const lock = LockService.getScriptLock();
+    lock.waitLock(25000);
+    try {
+      const sh = sheet_('SQL Students', SQL_STUDENT_HEADERS);
+      const row = findStudentRow_(sh, nameNorm);
+      if (row < 0) {
+        const salt = Utilities.getUuid();
+        const hash = hashPin_(pin, salt);
+        const sid = Utilities.getUuid().slice(0, 8);
+        sh.appendRow([nameRaw, salt, hash, sid, new Date()]);
+        lock.releaseLock();
+        return out_({ ok: true, sid: sid, created: true });
+      }
+      const vals = sh.getRange(row, 1, 1, SQL_STUDENT_HEADERS.length).getValues()[0];
+      const salt = vals[1], hash = vals[2], sid = vals[3];
+      if (hashPin_(pin, salt) === hash) {
+        cache.remove(failKey);
+        lock.releaseLock();
+        return out_({ ok: true, sid: sid, created: false });
+      }
+      cache.put(failKey, String(fails + 1), 600);
+      lock.releaseLock();
+      return out_({ error: 'pin' });
+    } catch (err) {
+      try { lock.releaseLock(); } catch (e2) {}
+      return out_({ error: String(err) });
+    }
+  }
+  // A logged-in SQL Legends session asking for its saved progress — same pattern as plload above.
+  if (a === 'sqlload') {
+    const sid = String(p.sid || '').trim();
+    if (!sid) return out_({ error: 'sid' });
+    const sh = sheet_('SQL Progress', SQL_PROGRESS_HEADERS);
     const row = findRowByCol_(sh, 1, sid);
     if (row < 0) return out_({ ok: true, progress: null });
     const json = sh.getRange(row, 2, 1, 1).getValues()[0][0];
