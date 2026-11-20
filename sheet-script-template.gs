@@ -55,6 +55,21 @@ const DIGEST_HIGH = 0.85;         // average quiz score at/above this = "top per
 const DIGEST_TOP_N = 5;           // how many names to list in each section at most
 const DIGEST_MIN_QUIZZES = 2;     // ignore a student/chapter with fewer quiz attempts than this -- too little data to judge
 
+// Adaptive mastery model (Bayesian Knowledge Tracing) -- see "Weekly parent
+// update" below. Unlike the plain-average digest above, this tracks a
+// per-student, per-chapter *probability of mastery* that updates after every
+// quiz attempt across the student's whole history, not just this week --
+// so a strong topic stays "mastered" even in a quiet week, and a shaky one
+// doesn't look fine just because of one lucky guess.
+const BKT_SUBJECT = 'Computer Science'; // which subject this model covers
+const BKT_P_INIT = 0.3;          // starting mastery estimate before any attempt
+const BKT_P_TRANSIT = 0.15;      // chance of moving from "not yet" to "mastered" after one attempt
+const BKT_P_GUESS = 0.25;        // chance of answering correctly while NOT yet mastered (a guess)
+const BKT_P_SLIP = 0.1;          // chance of answering wrong despite having mastered it (a slip)
+const BKT_STRONG = 0.75;         // mastery at/above this = "Strong" / ready for harder questions
+const BKT_NEEDS_PRACTICE = 0.4;  // mastery below this = "Needs practice"
+const BKT_MIN_ATTEMPTS = 2;      // ignore a chapter with fewer quiz attempts than this -- too little data to judge
+
 const ACTIVITY_HEADERS = ['Time', 'Name', 'Class', 'Event', 'Course', 'Chapter', 'Score', 'Total', 'Student ID', 'Boy/Girl', 'Subject', 'Answer', 'Class ID'];
 const FEEDBACK_HEADERS = ['Time', 'Name', 'Class', 'Type', 'Reason', 'Message', 'Page', 'About', 'Student ID', 'Boy/Girl', 'Subject', 'Class ID'];
 // Each student picks their own PIN the first time they log in. Only a salted hash is stored here —
@@ -645,6 +660,10 @@ function doGet(e) {
   // time-driven trigger -- useful to test it once after setting TEACHER_EMAIL,
   // or any time you want an up-to-the-minute summary.
   if (a === 'senddigest') { return out_({ ok: true, sentTo: sendWeeklyPerformanceReport() }); }
+  // Same idea, but one email PER STUDENT sent to their parent, built from
+  // that student's own Computer Science mastery model -- see "Weekly parent
+  // update" below. Useful to test right after filling in "Parent Contacts".
+  if (a === 'sendparentdigest') { return out_({ ok: true, sentTo: sendWeeklyParentReports() }); }
   if (a === 'summary') {
     // With &topic=… only that lesson's rows (from the most recent 4000) are sent, so live results stay fast all year.
     const t = String(p.topic || '');
@@ -835,8 +854,81 @@ function buildDigest_(subjectName) {
     windowDays: DIGEST_WINDOW_DAYS,
     quizzesThisWeek: windowRows.filter(function (r) { return r.event === 'quiz'; }).length,
     activeThisWeek: Object.keys(studs).filter(function (k) { return windowRows.some(function (r) { return keyOfRow_(r) === k; }); }).length,
-    top: top, needHelp: needHelp, weak: weak, quiet: quiet
+    top: top, needHelp: needHelp, weak: weak, quiet: quiet,
+    // Only meaningful for the Computer Science subject (see BKT_SUBJECT) --
+    // the full, every-subject digest (subjectName === '') still gets it,
+    // but another subject teacher's own digest won't.
+    ready: (subjectName === '' || subjectName === BKT_SUBJECT) ? readyForChallenge_() : []
   };
+}
+
+// =====================================================================
+// Adaptive mastery model (Bayesian Knowledge Tracing) -- the model behind
+// both the teacher digest's "Ready for a challenge" section above and the
+// weekly parent update below. One BKT instance per (student, chapter):
+// a probability of mastery that starts at BKT_P_INIT and updates after
+// every quiz attempt, across the student's WHOLE history (not just this
+// week), using two standard BKT steps:
+//   1. a Bayesian correction for each question answered this attempt,
+//      given that even a student who knows the material can slip
+//      (BKT_P_SLIP) and one who doesn't can guess right (BKT_P_GUESS);
+//   2. one "chance to learn from the result" (BKT_P_TRANSIT), applied
+//      once per attempt rather than once per question -- there's no time
+//      to actually learn something new between questions in the same quiz.
+// =====================================================================
+
+function bktStep_(p, correct) {
+  const num = correct ? p * (1 - BKT_P_SLIP) : p * BKT_P_SLIP;
+  const den = correct ? (num + (1 - p) * BKT_P_GUESS) : (num + (1 - p) * (1 - BKT_P_GUESS));
+  return den > 0 ? num / den : p;
+}
+
+function bktUpdateQuiz_(p, score, total) {
+  const t = Math.max(1, Math.round(+total) || 1);
+  const correct = Math.max(0, Math.min(t, Math.round(+score) || 0));
+  for (let i = 0; i < correct; i++) p = bktStep_(p, true);
+  for (let i = 0; i < (t - correct); i++) p = bktStep_(p, false);
+  p = p + (1 - p) * BKT_P_TRANSIT;
+  return Math.min(0.995, Math.max(0.005, p));
+}
+
+function masteryTier_(p) {
+  if (p >= BKT_STRONG) return 'Strong';
+  if (p >= BKT_NEEDS_PRACTICE) return 'Developing';
+  return 'Needs practice';
+}
+
+// Runs BKT over every Computer Science quiz row (rows_ already returns them
+// time-sorted, which BKT depends on), grouped by student x chapter.
+function bktMastery_() {
+  const rows = rows_('Activity', ['ts', 'name', 'cls', 'event', 'course', 'chapter', 'score', 'total', 'sid', 'g', 'sub', 'ans', 'classId'], 0)
+    .filter(function (r) { return r.event === 'quiz' && r.sub === BKT_SUBJECT; });
+  const byStudent = {};
+  rows.forEach(function (r) {
+    const k = keyOfRow_(r);
+    const s = byStudent[k] || (byStudent[k] = { sid: r.sid, name: r.name, cls: r.cls, chapters: {} });
+    const c = s.chapters[r.chapter] || (s.chapters[r.chapter] = { p: BKT_P_INIT, n: 0 });
+    c.p = bktUpdateQuiz_(c.p, r.score, r.total);
+    c.n++;
+  });
+  return byStudent;
+}
+
+// Students the model now rates "Strong" on at least one chapter -- the
+// trigger for DigiClass to start offering that chapter's harder
+// Challenge-level questions (see the Study Sprint's 20-minute "Challenge"
+// round in src/app.js, which already exists and already carries real
+// board-pattern harder questions -- this just decides WHEN to surface it).
+function readyForChallenge_() {
+  const byStudent = bktMastery_();
+  const out = [];
+  Object.values(byStudent).forEach(function (s) {
+    Object.keys(s.chapters).forEach(function (id) {
+      const c = s.chapters[id];
+      if (c.n >= BKT_MIN_ATTEMPTS && c.p >= BKT_STRONG) out.push({ name: s.name, cls: s.cls, chapter: prettyChapter_(id), pct: Math.round(c.p * 100) });
+    });
+  });
+  return out.sort(function (a, b) { return b.pct - a.pct; }).slice(0, DIGEST_TOP_N);
 }
 
 function digestSection_(title, rows, renderRow, emptyMsg) {
@@ -857,11 +949,17 @@ function digestHtml_(label, d) {
   const weakHtml = digestSection_('📌 Topics to re-teach', d.weak,
     function (c) { return '<li><b>' + esc(c.label) + '</b> — ' + c.pct + '% understood (' + c.n + ' attempt' + (c.n === 1 ? '' : 's') + ')<br><small style="color:#667">' + esc(c.action) + '</small></li>'; },
     '✅ No topic is below 60% understood this week.');
+  // "Ready" is from the mastery model (whole history, not just this week), so
+  // it's only shown when there's something to say -- no "nobody's ready yet"
+  // noise on a normal week.
+  const readyHtml = (d.ready && d.ready.length) ? digestSection_('🧠 Ready for a challenge', d.ready,
+    function (r) { return '<li><b>' + esc(r.name) + '</b> (Grade ' + esc(r.cls) + ') — mastered <i>' + esc(r.chapter) + '</i> (' + r.pct + '% estimated) · DigiClass will start offering harder Challenge-level questions on this topic.</li>'; },
+    '') : '';
   const quietHtml = digestSection_('😴 Gone quiet (' + d.windowDays + '+ days inactive)', d.quiet,
     function (s) { return '<li>' + esc(s.name) + ' (Grade ' + esc(s.cls) + ')</li>'; },
     'Everyone’s been active in the last ' + d.windowDays + ' days.');
   const footer = '<p style="color:#99a;font-size:12px;margin-top:20px">Sent automatically by DigiClass. Open “My Class (live)” in DigiClass Teach for the full picture, filters, and comments.</p>';
-  return '<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px">' + header + topHtml + helpHtml + weakHtml + quietHtml + footer + '</div>';
+  return '<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px">' + header + topHtml + readyHtml + helpHtml + weakHtml + quietHtml + footer + '</div>';
 }
 
 // The trigger's entry point -- wire this up under Triggers (see the setup
@@ -880,6 +978,80 @@ function sendWeeklyPerformanceReport() {
     const d = buildDigest_(st.subjectName);
     MailApp.sendEmail({ to: st.email, subject: 'DigiClass weekly digest · ' + st.subjectName, htmlBody: digestHtml_(st.subjectName, d) });
     sent.push(st.email);
+  });
+  return sent;
+}
+
+// =====================================================================
+// Weekly parent update -- one email PER STUDENT, sent to that student's
+// parent, built from the same mastery model (see "Adaptive mastery model"
+// above): what the model currently estimates they understand well, what
+// needs more practice, and which one topic to focus on this week.
+//
+// DigiClass has no parent sign-up flow, so there's one extra manual step:
+// a small "Parent Contacts" sheet (created automatically the first time
+// this runs) mapping each Student ID to a parent email address.
+//
+// One-time setup:
+//   1. Open the "Students" sheet and note each student's Student ID.
+//   2. Open (or let this create) the "Parent Contacts" sheet and fill in
+//      one row per student: Student ID | Student Name | Parent Email.
+//   3. In the Apps Script editor: Triggers -> + Add Trigger -> Function:
+//      sendWeeklyParentReports -> Time-driven -> Week timer -> day + hour.
+//   4. Save, and approve the Gmail/MailApp permission if it asks again.
+// To test it immediately: run sendWeeklyParentReports from the Apps
+// Script editor's function picker, or call
+// ?action=sendparentdigest&pin=<TEACHER_PIN> once (see doGet).
+//
+// A student with fewer than BKT_MIN_ATTEMPTS Computer Science quiz
+// attempts on every chapter, or with no "Parent Contacts" row at all,
+// is skipped that week rather than sent an empty/unreliable email.
+// =====================================================================
+
+const PARENT_HEADERS = ['Student ID', 'Student Name', 'Parent Email'];
+
+function parentRows_() {
+  const sh = sheet_('Parent Contacts', PARENT_HEADERS);
+  if (sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, PARENT_HEADERS.length).getValues()
+    .map(function (r) { return { sid: String(r[0] || '').trim(), name: String(r[1] || '').trim(), email: String(r[2] || '').trim() }; })
+    .filter(function (r) { return r.sid && r.email; });
+}
+
+function parentDigestHtml_(studentName, chapters) {
+  const esc = function (s) { return String(s == null ? '' : s).replace(/[&<>]/g, function (c) { return c === '&' ? '&amp;' : c === '<' ? '&lt;' : '&gt;'; }); };
+  const tierIcon = { 'Strong': '💪', 'Developing': '📈', 'Needs practice': '🔁' };
+  const rows = chapters.map(function (c) {
+    return '<li>' + (tierIcon[c.tier] || '') + ' <b>' + esc(c.label) + '</b> — ' + c.tier + ' (' + c.pct + '% estimated mastery, ' + c.n + ' attempt' + (c.n === 1 ? '' : 's') + ')</li>';
+  }).join('');
+  const weakest = chapters[0]; // sorted ascending by mastery
+  const strongest = chapters[chapters.length - 1];
+  const focus = (weakest && weakest.tier !== 'Strong')
+    ? '<p><b>This week, it would help most to focus on:</b> ' + esc(weakest.label) + '.</p>' : '';
+  const challenge = (strongest && strongest.tier === 'Strong')
+    ? '<p>🧠 ' + esc(studentName) + ' has mastered <b>' + esc(strongest.label) + '</b> — DigiClass will start offering ' + esc(studentName) + ' harder Challenge-level questions on this topic.</p>' : '';
+  const header = '<h2 style="margin:0 0 4px">📘 ' + esc(studentName) + '’s Computer Science update</h2>'
+    + '<p style="color:#667;margin:0 0 18px">Estimated topic-by-topic understanding from DigiClass’s learning model, which updates as ' + esc(studentName) + ' answers more quiz questions.</p>';
+  const list = '<ul style="margin:0 0 16px;padding-left:20px">' + rows + '</ul>';
+  const footer = '<p style="color:#99a;font-size:12px;margin-top:20px">These are estimates from practice-quiz answers, not exam grades, and improve with more practice. Sent automatically, weekly, by DigiClass.</p>';
+  return '<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px">' + header + list + focus + challenge + footer + '</div>';
+}
+
+function sendWeeklyParentReports() {
+  const byStudent = bktMastery_();
+  const sent = [];
+  parentRows_().forEach(function (pc) {
+    const s = byStudent[pc.sid];
+    if (!s) return; // no Computer Science quiz activity logged for this student yet
+    const chapters = Object.keys(s.chapters).map(function (id) {
+      const c = s.chapters[id];
+      return { id: id, label: prettyChapter_(id), pct: Math.round(c.p * 100), tier: masteryTier_(c.p), n: c.n };
+    }).filter(function (c) { return c.n >= BKT_MIN_ATTEMPTS; }).sort(function (a, b) { return a.pct - b.pct; });
+    if (!chapters.length) return;
+    const studentName = pc.name || s.name || 'Your child';
+    const html = parentDigestHtml_(studentName, chapters);
+    MailApp.sendEmail({ to: pc.email, subject: studentName + '’s weekly Computer Science update · DigiClass', htmlBody: html });
+    sent.push(pc.email);
   });
   return sent;
 }

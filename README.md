@@ -123,13 +123,17 @@ the same 60%-understood bar and suggested-action text the dashboard
 already uses — and emails that summary to the teacher automatically, on
 a weekly schedule, with no one needing to open the dashboard.
 
-Each email has four sections: **top performers**, **students who need
-support** (with the chapter they're struggling on most), **topics to
-re-teach** (class-wide, with a one-line suggested next step), and
-**students gone quiet** (no activity in the last 7 days). A student or
-chapter needs at least `DIGEST_MIN_QUIZZES` (2) quiz attempts that week
-before being judged at all — not enough data yet, rather than a shaky
-verdict.
+Each email has these sections: **top performers**, **ready for a
+challenge** (students the mastery model below now rates "Strong" on a
+topic — see "Weekly parent update"), **students who need support** (with
+the chapter they're struggling on most), **topics to re-teach**
+(class-wide, with a one-line suggested next step), and **students gone
+quiet** (no activity in the last 7 days). A student or chapter needs at
+least `DIGEST_MIN_QUIZZES` (2) quiz attempts that week before being
+judged at all — not enough data yet, rather than a shaky verdict. ("Ready
+for a challenge" only ever covers Computer Science — see `BKT_SUBJECT`
+below — so a subject teacher's own digest only shows it if her subject
+is Computer Science.)
 
 Setup, after you've already deployed the script above:
 
@@ -152,3 +156,79 @@ whatever's in the Activity log so far.
 `DIGEST_WINDOW_DAYS`, `DIGEST_OK`, `DIGEST_HIGH`, `DIGEST_TOP_N`, and
 `DIGEST_MIN_QUIZZES` near the top of the script tune the thresholds —
 e.g. raise `DIGEST_HIGH` if "top performer" should mean 90%+, not 85%+.
+
+## Adaptive mastery model + weekly parent update
+
+A step up from the plain weekly average above: a small **Bayesian
+Knowledge Tracing (BKT)** model, also in `sheet-script-template.gs`,
+that tracks a probability of mastery **per student, per chapter**,
+updated after every Computer Science quiz attempt across that student's
+*whole* history — not just the current week. A student who aced a topic
+a month ago and hasn't touched it since still reads as "mastered"; one
+who guessed right on a single quiz doesn't.
+
+This feeds two things:
+
+1. **The teacher digest's "Ready for a challenge" section** above — any
+   student the model now rates "Strong" (≥75% estimated mastery, with
+   enough attempts to trust it) on a chapter.
+2. **A weekly email per student, sent to that student's parent** — what
+   the model estimates they currently understand well, what needs more
+   practice, and the one topic to focus on this week. DigiClass has no
+   parent sign-up flow, so this needs one small manual step: a **"Parent
+   Contacts"** sheet (created automatically the first time the report
+   runs) with one row per student — `Student ID | Student Name | Parent
+   Email` — the Student ID matching the one already in the "Students"
+   sheet. A student with no row there, or too little Computer Science
+   quiz data yet, is skipped that week rather than sent a shaky or empty
+   email.
+
+Setup, after you've already deployed the script above:
+
+1. Fill in the "Parent Contacts" sheet (see above).
+2. Deploy → Manage deployments → ✏️ Edit → Version: New version → Deploy.
+3. Triggers → **+ Add Trigger** → Function: `sendWeeklyParentReports` →
+   Event source: Time-driven → Week timer → pick a day and hour → Save.
+
+To test immediately: open `<your Web app URL>?action=sendparentdigest&pin=<TEACHER_PIN>`
+once, or run `sendWeeklyParentReports` from the Apps Script editor's
+function picker.
+
+`BKT_SUBJECT`, `BKT_P_INIT`, `BKT_P_TRANSIT`, `BKT_P_GUESS`,
+`BKT_P_SLIP`, `BKT_STRONG`, `BKT_NEEDS_PRACTICE`, and `BKT_MIN_ATTEMPTS`
+near the top of the script tune the model — the four `BKT_P_*` values
+are the standard BKT parameters (prior, learning rate, guess rate, slip
+rate); a dissertation methodology chapter can cite these directly, and
+`research/bkt_eval.py` (below) fits and evaluates them properly against
+a real exported Activity log instead of the reasonable defaults shipped
+here.
+
+### Automatic in-app challenge questions
+
+Separately, the student-facing app itself (`src/app.js`) reacts to
+mastery in the moment: finishing a chapter quiz with a strong score
+(≥80% on that attempt), on a chapter that already has real board-pattern
+"Challenge"-level questions in its practice bank, now shows a **"🧠 Try
+the Challenge round"** button right on the score screen — one tap opens
+a 20-minute Study Sprint pulling only that chapter's hardest tagged
+questions. No new question content was written for this: DigiClass
+already tags practice-bank questions by difficulty (`src/app.js`'s
+`bankOf`/`pickBank`, used by the existing Study Sprint); this just
+decides *when* to surface the hard ones, instead of waiting for a
+student to find Study Sprint on their own. This immediate nudge uses
+the quiz's own current-attempt score, which is a lighter, instant signal
+than the full BKT model above — the two are complementary: one reacts
+inside the app right away, the other builds the longer-term picture the
+teacher and parents see.
+
+### For the dissertation: `research/bkt_eval.py`
+
+A standalone Python script (no Apps Script, no Google Sheet needed to
+run it) that fits BKT parameters properly via EM (Baum–Welch) against
+real quiz-attempt sequences and evaluates the fit — held-out prediction
+accuracy, log-loss, and a calibration check — instead of just asserting
+the hand-picked constants above are reasonable. Run it with no arguments
+to see it work on a built-in synthetic dataset; point it at a CSV
+exported from an "Activity - Computer Science" sheet to fit and
+evaluate against real student data. See the comment at the top of the
+file for the exact CSV columns expected and how to export one.

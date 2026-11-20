@@ -1665,11 +1665,19 @@ function drawQ(){
     scores[Q.id] = Math.max(scores[Q.id]??0, Q.right); store.set("cs12-scores",scores);
     const p=Q.right/qs.length, C=2*Math.PI*62;
     const [h,msg] = p===1?["Perfect score! 🏆","You've nailed this chapter. Keep the streak going with the next one."]:p>=.6?["Great effort! 💪","You're nearly there. Re-read the sections you missed and try again."]:["Good start 🌱","Every attempt helps. Go through the notes once more, then have another go."];
+    // Strong score + this chapter has real board-pattern "Challenge" (harder,
+    // level-3+) questions in its practice bank -> offer them right now,
+    // instead of waiting for the student to find the Study Sprint on their
+    // own. This is the quiz's own quick read of mastery (this attempt); the
+    // teacher/parent-facing mastery model (sheet-script-template.gs) looks
+    // at the student's whole history and is the stronger signal over time.
+    const canChallenge = p>=.8 && typeof bankOf==="function" && bankOf(Q.id).some(x=>(parseInt(x[2])||2)>=3);
     d.innerHTML = `<div class="qd-head"><b>${esc(Q.title)}</b><button class="qd-close" aria-label="Close quiz" data-close>${IC.x}</button></div>
       <div class="qsteps">${steps}</div>
       <div class="done-wrap"><div class="scorering"><svg viewBox="0 0 150 150"><circle class="bg" cx="75" cy="75" r="62"/><circle class="fg" cx="75" cy="75" r="62" stroke-dasharray="${C}" stroke-dashoffset="${C}" id="ringfg"/></svg><b>${Q.right}/${qs.length}</b></div>
       <h3>${h}</h3><p>${msg}</p>
-      <div class="qfoot"><button class="btn" data-retry>Try again</button><button class="btn primary" data-close>Back to notes</button></div></div>`;
+      ${canChallenge?`<p class="meta">🧠 You know this well enough to try harder, board-pattern questions on it.</p>`:""}
+      <div class="qfoot">${canChallenge?`<button class="btn primary" data-challenge="${Q.id}">🧠 Try the Challenge round</button>`:""}<button class="btn" data-retry>Try again</button><button class="btn${canChallenge?"":" primary"}" data-close>Back to notes</button></div></div>`;
     requestAnimationFrame(()=>setTimeout(()=>{ const r=$("ringfg"); if(r) r.style.strokeDashoffset=C*(1-p); if(p===1) burst(d.querySelector(".scorering")); },60));
     return;
   }
@@ -1683,6 +1691,8 @@ function drawQ(){
   const first=d.querySelector(".opt"); if(first) first.focus({preventScroll:true});
 }
 $("qd").addEventListener("click",e=>{
+  const chal=e.target.closest("[data-challenge]");
+  if(chal){ const id=chal.dataset.challenge; $("quiz").close(); if(typeof openSprint==="function") setTimeout(()=>openSprint(20,id),200); return; }
   if(e.target.closest("[data-close]")) return $("quiz").close();
   if(e.target.closest("[data-retry]")) return openQuiz(Q.id);
   if(e.target.closest("[data-next]")){ Q.i++; return drawQ(); }
