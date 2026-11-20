@@ -2468,6 +2468,7 @@ const CLS = (()=>{
       <form class="join-f" data-join>
         <label>Full name<input name="name" maxlength="40" required autocomplete="name" placeholder="e.g. Aisha Rahman" value="${esc(pv.name||"")}"></label>
         <label>My class<select name="classId" required><option value="">Choose…</option>${DC_CLASS.sections.map(s=>`<option value="${s.id}" ${pv.classId===s.id?"selected":""}>${s.label}</option>`).join("")}</select></label>
+        <label>Email <small>(optional — yours or a parent's, for a weekly progress update)</small><input name="email" type="email" maxlength="80" autocomplete="email" placeholder="e.g. parent@example.com" value="${esc(pv.email||"")}"></label>
         <div class="join-go"><button class="btn primary" type="submit" data-go="#/classes">🏠 Join → DigiClass Learn</button><button class="btn primary alt" type="submit" data-go="#/teach">🏫 Join → DigiClass Teach</button></div>
       </form>
     </section>`;
@@ -2700,12 +2701,16 @@ const CLS = (()=>{
   document.addEventListener("submit",e=>{
     const jf=e.target.closest("[data-join]");
     if(jf){ e.preventDefault(); const name=jf.name.value.trim().replace(/\s+/g,' ').slice(0,40), classId=jf.classId.value;
+      const email=(jf.email?jf.email.value:"").trim().slice(0,80);
       const sec=DC_CLASS.sections.find(x=>x.id===classId);
       if(!/^[\p{L}][\p{L}'. -]{1,39}$/u.test(name)){ toast("Please enter your full name (letters only)."); return; }
       if(!sec){ toast("Please choose your class."); return; }
+      // Email is optional, but if something was typed it should at least
+      // look like one -- the point is saving it once, not blocking sign-up.
+      if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ toast("That email doesn't look right -- leave it blank to skip it for now."); return; }
       const old=me();
-      store.set(K.me,{name:name.replace(/(^|\s)\S/g,c=>c.toUpperCase()), cls:sec.cls, sub:sec.sub, classId:sec.id, g:"", sid:(old&&old.sid)||Math.random().toString(36).slice(2,10)});
-      send("join",{}); toast(`Welcome, ${name}! 🎉`); const go=e.submitter&&e.submitter.dataset.go; if(go){ location.hash=go; } else rerender(); return; }
+      store.set(K.me,{name:name.replace(/(^|\s)\S/g,c=>c.toUpperCase()), cls:sec.cls, sub:sec.sub, classId:sec.id, g:"", email, sid:(old&&old.sid)||Math.random().toString(36).slice(2,10)});
+      send("join",{email}); toast(`Welcome, ${name}! 🎉`); const go=e.submitter&&e.submitter.dataset.go; if(go){ location.hash=go; } else rerender(); return; }
     const tp=e.target.closest("[data-tpin]");
     if(tp){ e.preventDefault(); const msg=$("tpinMsg"); msg.textContent="Loading…"; loadTD(tp.pin.value.trim(), err=>{ if(err) msg.textContent=err; else rerender(); }); }
   });

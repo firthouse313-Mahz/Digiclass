@@ -162,10 +162,20 @@ e.g. raise `DIGEST_HIGH` if "top performer" should mean 90%+, not 85%+.
 A step up from the plain weekly average above: a small **Bayesian
 Knowledge Tracing (BKT)** model, also in `sheet-script-template.gs`,
 that tracks a probability of mastery **per student, per chapter**,
-updated after every Computer Science quiz attempt across that student's
+updated after every Computer Science **quiz attempt AND individual
+practice-bank "Try it yourself" code question** across that student's
 *whole* history — not just the current week. A student who aced a topic
 a month ago and hasn't touched it since still reads as "mastered"; one
-who guessed right on a single quiz doesn't.
+who guessed right on a single quiz doesn't. Both those attempt types are
+auto-marked right/wrong with no human judgement, so BKT can trust them
+the same way; self- or peer-rated activity (group-work slider ratings,
+exit tickets) and whole mock-paper scores are deliberately left out of
+the model, since those aren't a clean per-question correct/incorrect
+signal. Including individual code questions matters in practice, not
+just in theory: a full chapter quiz is a relatively rare event, while
+students answer practice-bank questions constantly, so a class that's
+only logged a couple of dozen full quizzes may already have hundreds of
+these finer-grained attempts for the model to learn from.
 
 This feeds two things:
 
@@ -174,13 +184,21 @@ This feeds two things:
    enough attempts to trust it) on a chapter.
 2. **A weekly email per student, sent to that student's parent** — what
    the model estimates they currently understand well, what needs more
-   practice, and the one topic to focus on this week. DigiClass has no
-   parent sign-up flow, so this needs one small manual step: a **"Parent
-   Contacts"** sheet (created automatically the first time the report
-   runs) with one row per student — `Student ID | Student Name | Parent
-   Email` — the Student ID matching the one already in the "Students"
-   sheet. A student with no row there, or too little Computer Science
-   quiz data yet, is skipped that week rather than sent a shaky or empty
+   practice, and the one topic to focus on this week. The address comes
+   from a **"Parent Contacts"** sheet (`Student ID | Student Name |
+   Parent Email`, created automatically), filled in two ways:
+   - **Automatically**, from the "Join your class" screen itself: every
+     student now sees an optional "Email (yours or a parent's)" field.
+     If they fill it in, `doPost` saves it straight into "Parent
+     Contacts" by their Student ID the moment they join — once, ever;
+     re-joining later with the field left blank never erases what was
+     saved. A garbled value (missing `@`, no `.`) is rejected rather
+     than saved. This covers every *new* join from here on.
+   - **Manually**, for everyone who joined before this existed, or any
+     student who skipped the field: add their row yourself, matching the
+     Student ID already in the "Students" sheet.
+   Either way, a student with no row there yet, or too little Computer
+   Science activity yet, is skipped that week rather than sent a shaky or empty
    email.
 
 Setup, after you've already deployed the script above:

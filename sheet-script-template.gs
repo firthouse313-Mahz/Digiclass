@@ -183,6 +183,21 @@ function findRowByCol_(sh, col, value) {
   for (let i = 0; i < vals.length; i++) { if (String(vals[i][0]) === value) return i + 2; }
   return -1;
 }
+// Loose on purpose (catches obvious typos without rejecting real but
+// unusual addresses) -- this only decides whether to save what a student
+// typed, never whether an email can receive mail.
+function looksLikeEmail_(s) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s || '').trim());
+}
+// Upserts one row of the "Parent Contacts" sheet (see PARENT_HEADERS and
+// "Weekly parent update" below) by Student ID -- called from doPost when
+// a student types an email into "Join your class".
+function upsertParentContact_(sid, name, email) {
+  const sh = sheet_('Parent Contacts', PARENT_HEADERS);
+  const row = findRowByCol_(sh, 1, sid);
+  if (row < 0) sh.appendRow([sid, name, email]);
+  else sh.getRange(row, 1, 1, PARENT_HEADERS.length).setValues([[sid, name, email]]);
+}
 
 // Lessons the teacher has started (stored in the script's own settings).
 function groups_() {
@@ -268,6 +283,15 @@ function doPost(e) {
         new Date(), clean_(d.name, 40), clean_(d.cls, 5), clean_(d.event, 10), clean_(d.course, 8),
         clean_(d.chapter, 40), num_(d.score), num_(d.total), clean_(d.sid, 12), clean_(d.g, 5), clean_(d.sub, 25), clean_(d.ans, 10), clean_(d.classId, 12)
       ]);
+      // A student who typed an email into "Join your class" (optional --
+      // their own, or a parent's) gets saved straight into "Parent
+      // Contacts", the same sheet the weekly parent update reads from --
+      // so it's entered once, ever, not re-typed by hand for every
+      // student. Only runs on 'join' with a real-looking email; re-joining
+      // with the field left blank never erases an email saved earlier.
+      if (d.event === 'join' && looksLikeEmail_(d.email) && d.sid) {
+        upsertParentContact_(clean_(d.sid, 12), clean_(d.name, 40), clean_(d.email, 80).toLowerCase());
+      }
     }
     if (uid) cache.put('u_' + uid, '1', 21600);
     lock.releaseLock();
@@ -867,7 +891,7 @@ function buildDigest_(subjectName) {
 // both the teacher digest's "Ready for a challenge" section above and the
 // weekly parent update below. One BKT instance per (student, chapter):
 // a probability of mastery that starts at BKT_P_INIT and updates after
-// every quiz attempt, across the student's WHOLE history (not just this
+// every attempt, across the student's WHOLE history (not just this
 // week), using two standard BKT steps:
 //   1. a Bayesian correction for each question answered this attempt,
 //      given that even a student who knows the material can slip
@@ -875,6 +899,22 @@ function buildDigest_(subjectName) {
 //   2. one "chance to learn from the result" (BKT_P_TRANSIT), applied
 //      once per attempt rather than once per question -- there's no time
 //      to actually learn something new between questions in the same quiz.
+//
+// "Every attempt" means every chapter QUIZ *and* every individual
+// practice-bank "Try it yourself" code question ('code' events, logged
+// one per question, score 0 or 1 out of 1) -- not quiz attempts alone.
+// A real class logs far more of the latter: a first run of this model
+// against one teacher's real export found only ~26 full quiz attempts in
+// the whole Computer Science log but hundreds of individual 'code'
+// attempts, nowhere near enough of the former alone to fit or trust a
+// per-chapter model. 'code' attempts are graded the same way quizzes
+// are -- auto-marked right/wrong, no human judgement -- so they're a
+// valid BKT observation, just a smaller, more frequent one (total=1
+// instead of total=10). Other logged event types ('self', 'gmark',
+// 'hdyd', 'peer', 'sc', 'exit', 'rate', 'paper') are deliberately left
+// out: those are self- or peer-rated on a 0-3 scale, or a whole mock
+// paper's combined score, not the clean per-question right/wrong signal
+// BKT is built on.
 // =====================================================================
 
 function bktStep_(p, correct) {
@@ -883,7 +923,14 @@ function bktStep_(p, correct) {
   return den > 0 ? num / den : p;
 }
 
-function bktUpdateQuiz_(p, score, total) {
+// One attempt's worth of BKT update -- a chapter quiz (several questions
+// at once, total > 1) or a single practice-bank code question (total=1).
+// Works identically either way: a Bayesian correction per question
+// answered this attempt, then one "chance to learn" applied once for the
+// whole attempt (not once per question -- there's no time to learn
+// something new mid-quiz, or between one code question and the next
+// click of "Check").
+function bktUpdateAttempt_(p, score, total) {
   const t = Math.max(1, Math.round(+total) || 1);
   const correct = Math.max(0, Math.min(t, Math.round(+score) || 0));
   for (let i = 0; i < correct; i++) p = bktStep_(p, true);
@@ -898,17 +945,18 @@ function masteryTier_(p) {
   return 'Needs practice';
 }
 
-// Runs BKT over every Computer Science quiz row (rows_ already returns them
-// time-sorted, which BKT depends on), grouped by student x chapter.
+// Runs BKT over every Computer Science quiz AND practice-code row (rows_
+// already returns them time-sorted, which BKT depends on), grouped by
+// student x chapter.
 function bktMastery_() {
   const rows = rows_('Activity', ['ts', 'name', 'cls', 'event', 'course', 'chapter', 'score', 'total', 'sid', 'g', 'sub', 'ans', 'classId'], 0)
-    .filter(function (r) { return r.event === 'quiz' && r.sub === BKT_SUBJECT; });
+    .filter(function (r) { return (r.event === 'quiz' || r.event === 'code') && r.sub === BKT_SUBJECT; });
   const byStudent = {};
   rows.forEach(function (r) {
     const k = keyOfRow_(r);
     const s = byStudent[k] || (byStudent[k] = { sid: r.sid, name: r.name, cls: r.cls, chapters: {} });
     const c = s.chapters[r.chapter] || (s.chapters[r.chapter] = { p: BKT_P_INIT, n: 0 });
-    c.p = bktUpdateQuiz_(c.p, r.score, r.total);
+    c.p = bktUpdateAttempt_(c.p, r.score, r.total);
     c.n++;
   });
   return byStudent;

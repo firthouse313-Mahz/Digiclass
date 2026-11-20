@@ -26,12 +26,20 @@ File -> Download -> Comma-separated values) and pass that path. Expected
 columns (same order as ACTIVITY_HEADERS in sheet-script-template.gs):
   Time, Name, Class, Event, Course, Chapter, Score, Total, Student ID,
   Boy/Girl, Subject, Answer, Class ID
-Only rows where Event == "quiz" are used. Each row becomes `Total`
-individual correct/incorrect "opportunities" in time order (Score of
-them correct, the rest incorrect) -- matching exactly how
-bktUpdateQuiz_() in sheet-script-template.gs consumes a quiz attempt, so
-the parameters fit here are directly comparable to (and can replace) the
-BKT_P_* constants near the top of that script.
+Rows where Event == "quiz" (a full chapter quiz, several questions at
+once) or Event == "code" (one practice-bank "Try it yourself" question,
+auto-marked right/wrong, Total always 1) are used; everything else
+(self/peer-rated activity, mock papers) is left out -- see "MODEL" below
+for why. Each row becomes `Total` individual correct/incorrect
+"opportunities" in time order (Score of them correct, the rest
+incorrect) -- matching exactly how bktUpdateAttempt_() in
+sheet-script-template.gs consumes an attempt, so the parameters fit here
+are directly comparable to (and can replace) the BKT_P_* constants near
+the top of that script. In practice a real class logs far more 'code'
+attempts than full quizzes, so including them matters: a first run of
+this script against one teacher's real export found only ~26 quiz
+attempts in the whole Computer Science log, nowhere near enough to fit
+a reliable per-chapter model, versus hundreds of 'code' attempts.
 
 MODEL
 -----
@@ -260,7 +268,7 @@ def load_csv_sequences(path):
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for r in reader:
-            if (r.get("Event") or "").strip().lower() != "quiz":
+            if (r.get("Event") or "").strip().lower() not in ("quiz", "code"):
                 continue
             try:
                 score = float(r.get("Score") or 0)
