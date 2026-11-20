@@ -113,3 +113,42 @@ Extensions → Apps Script, keeping your real `TEACHER_PIN`/`CLASS_CODE`/
 `LEARN_KEY`/`KEYS` values in place, then Deploy → Manage deployments →
 ✏️ Edit → Version: New version → Deploy. The Web app URL stays the same,
 so nothing else needs updating.
+
+## Weekly performance digest (email agent)
+
+A small rule-based agent, also in `sheet-script-template.gs`, that reads
+the same Activity log the in-app "My Class (live)" dashboard reads, works
+out who's doing well, who needs support, and which topics to re-teach —
+the same 60%-understood bar and suggested-action text the dashboard
+already uses — and emails that summary to the teacher automatically, on
+a weekly schedule, with no one needing to open the dashboard.
+
+Each email has four sections: **top performers**, **students who need
+support** (with the chapter they're struggling on most), **topics to
+re-teach** (class-wide, with a one-line suggested next step), and
+**students gone quiet** (no activity in the last 7 days). A student or
+chapter needs at least `DIGEST_MIN_QUIZZES` (2) quiz attempts that week
+before being judged at all — not enough data yet, rather than a shaky
+verdict.
+
+Setup, after you've already deployed the script above:
+
+1. In your real (secrets-filled) copy of the script, set `TEACHER_EMAIL`
+   to your own address (and/or add `email: '...'` to any `SUBJECT_TEACHERS`
+   entry — that subject teacher then gets her own digest, filtered to
+   just her subject, same as her PIN already filters everything else).
+2. Deploy → Manage deployments → ✏️ Edit → Version: New version → Deploy.
+3. In the Apps Script editor: Triggers (clock icon, left sidebar) → **+
+   Add Trigger** → Function: `sendWeeklyPerformanceReport` → Event
+   source: Time-driven → Week timer → pick a day and hour → Save. The
+   first run will ask you to approve Gmail/MailApp access — approve it.
+
+To test it immediately instead of waiting for the trigger: open
+`<your Web app URL>?action=senddigest&pin=<TEACHER_PIN>` once in a
+browser, or run `sendWeeklyPerformanceReport` from the Apps Script
+editor's function picker. Either way it sends right away using
+whatever's in the Activity log so far.
+
+`DIGEST_WINDOW_DAYS`, `DIGEST_OK`, `DIGEST_HIGH`, `DIGEST_TOP_N`, and
+`DIGEST_MIN_QUIZZES` near the top of the script tune the thresholds —
+e.g. raise `DIGEST_HIGH` if "top performer" should mean 90%+, not 85%+.

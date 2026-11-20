@@ -29,8 +29,15 @@ const TEACHER_PIN = 'CHANGE-ME';
 //     subjectId must match the start of that subject's topic ids (see KEYS
 //     below), e.g. Informatics Practices topics are "ip11-...", so subjectId is 'ip'.
 const SUBJECT_TEACHERS = [
-  // { pin: 'IP-DEMO-2026', subjectId: 'ip', subjectName: 'Informatics Practices' },
+  // { pin: 'IP-DEMO-2026', subjectId: 'ip', subjectName: 'Informatics Practices', email: 'ip-teacher@school.example' },
 ];
+
+// 1c) OPTIONAL: your own email, to receive the weekly performance digest
+//     (see "Weekly performance digest" below) covering every subject. Leave
+//     blank to skip the digest entirely. A SUBJECT_TEACHERS entry with its
+//     own "email" above also gets its own digest, filtered to that subject
+//     only -- she never sees another subject's students.
+const TEACHER_EMAIL = '';
 
 // 2) CLASS CODE: give this to your students so they can open DigiClass.
 //    You can change it any time (then Deploy a new version). Students who
@@ -40,6 +47,13 @@ const CLASS_CODE = /*__CODE__*/'';
 
 // Unlocks the DigiClass pages. Do not share this script.
 const LEARN_KEY = /*__LEARN__*/'';
+
+// Weekly performance digest settings -- see "Weekly performance digest" below.
+const DIGEST_WINDOW_DAYS = 7;     // how far back "this week" looks
+const DIGEST_OK = 0.6;            // same 60% bar "My Class (live)" uses for "understood"
+const DIGEST_HIGH = 0.85;         // average quiz score at/above this = "top performer"
+const DIGEST_TOP_N = 5;           // how many names to list in each section at most
+const DIGEST_MIN_QUIZZES = 2;     // ignore a student/chapter with fewer quiz attempts than this -- too little data to judge
 
 const ACTIVITY_HEADERS = ['Time', 'Name', 'Class', 'Event', 'Course', 'Chapter', 'Score', 'Total', 'Student ID', 'Boy/Girl', 'Subject', 'Answer', 'Class ID'];
 const FEEDBACK_HEADERS = ['Time', 'Name', 'Class', 'Type', 'Reason', 'Message', 'Page', 'About', 'Student ID', 'Boy/Girl', 'Subject', 'Class ID'];
@@ -627,6 +641,10 @@ function doGet(e) {
   }
   if (a === 'groups') { PropertiesService.getScriptProperties().setProperty('GROUPS', String(Math.max(2, Math.min(9, Number(p.g) || 6)))); return out_({ ok: true, groups: groups_() }); }
   if (a === 'lockall') { setOpenTopics_([]); return out_({ ok: true, open: [] }); }
+  // Send the weekly performance digest right now instead of waiting for the
+  // time-driven trigger -- useful to test it once after setting TEACHER_EMAIL,
+  // or any time you want an up-to-the-minute summary.
+  if (a === 'senddigest') { return out_({ ok: true, sentTo: sendWeeklyPerformanceReport() }); }
   if (a === 'summary') {
     // With &topic=… only that lesson's rows (from the most recent 4000) are sent, so live results stay fast all year.
     const t = String(p.topic || '');
@@ -711,4 +729,157 @@ function rows_(base, keys, lastN) {
 
 function out_(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+}
+
+// =====================================================================
+// Weekly performance digest -- an "agent" in the dissertation sense: it
+// reads the same Activity log the live dashboard reads, runs a small
+// rule-based model over it (per-student and per-chapter averages against
+// a fixed "understood" threshold, the same 60% bar "My Class (live)"
+// already uses), decides who's doing well, who needs support, and which
+// topics to re-teach, and acts on that by emailing the teacher -- without
+// her having to open the dashboard at all.
+//
+// One-time setup (after filling in TEACHER_EMAIL and/or a SUBJECT_TEACHERS
+// email above, then Deploy -> New version):
+//   1. In the Apps Script editor: Triggers (clock icon, left sidebar).
+//   2. + Add Trigger -> Function: sendWeeklyPerformanceReport
+//      -> Event source: Time-driven -> Week timer -> pick a day + hour.
+//   3. Save, and approve the Gmail/MailApp permission the first time it asks.
+// To test it immediately instead of waiting for the trigger: run
+// sendWeeklyPerformanceReport from the Apps Script editor's function
+// picker, or call ?action=senddigest&pin=<TEACHER_PIN> once (see doGet).
+//
+// Quota note: MailApp gives a personal Google account ~100 emails/day
+// (Workspace accounts get more) -- a once-a-week digest to one or two
+// teachers is nowhere near that, so this never needs watching.
+// =====================================================================
+
+function prettyChapter_(id) {
+  const base = String(id || '').split('@')[0].split('#')[0];
+  const rest = base.replace(/^[a-z]+\d*-/, '');
+  return (rest || base).replace(/-/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+}
+
+function keyOfRow_(r) {
+  return r.sid || ((r.name || '') + '|' + (r.cls || ''));
+}
+
+// Builds one subject's (or, with subjectName='', every subject's) digest
+// from the Activity log: top performers, students who need support, weak
+// chapters with a suggested next step, and students who've gone quiet.
+function buildDigest_(subjectName) {
+  const now = Date.now();
+  const sinceMs = now - DIGEST_WINDOW_DAYS * 864e5;
+  const all = rows_('Activity', ['ts', 'name', 'cls', 'event', 'course', 'chapter', 'score', 'total', 'sid', 'g', 'sub', 'ans', 'classId'], 0)
+    .filter(function (r) { return !subjectName || r.sub === subjectName; });
+  const windowRows = all.filter(function (r) { return new Date(r.ts).getTime() >= sinceMs; });
+
+  // per-student: quiz scores this week, plus last-seen across ALL activity
+  // (not just the window) so "gone quiet" means genuinely inactive, not
+  // just a student who happened not to take a quiz this week.
+  const studs = {};
+  const touch = function (r) {
+    const k = keyOfRow_(r);
+    let s = studs[k];
+    if (!s) s = studs[k] = { k: k, name: r.name, cls: r.cls, sub: r.sub, last: r.ts, quiz: [] };
+    if (r.ts > s.last) s.last = r.ts;
+    return s;
+  };
+  all.forEach(touch);
+  windowRows.forEach(function (r) {
+    if (r.event !== 'quiz') return;
+    const s = touch(r);
+    s.quiz.push({ chapter: r.chapter, v: (+r.score) / (+r.total || 1) });
+  });
+  const avg = function (s) { return s.quiz.length ? s.quiz.reduce(function (n, q) { return n + q.v; }, 0) / s.quiz.length : null; };
+  const weakest = function (s) {
+    if (!s.quiz.length) return null;
+    return s.quiz.slice().sort(function (a, b) { return a.v - b.v; })[0];
+  };
+
+  const withQuizzes = Object.values(studs).filter(function (s) { return s.quiz.length >= DIGEST_MIN_QUIZZES; });
+  const top = withQuizzes.filter(function (s) { return avg(s) >= DIGEST_HIGH; })
+    .sort(function (a, b) { return avg(b) - avg(a); }).slice(0, DIGEST_TOP_N)
+    .map(function (s) { return { name: s.name, cls: s.cls, pct: Math.round(avg(s) * 100) }; });
+  const needHelp = withQuizzes.filter(function (s) { return avg(s) < DIGEST_OK; })
+    .sort(function (a, b) { return avg(a) - avg(b); }).slice(0, DIGEST_TOP_N)
+    .map(function (s) { const w = weakest(s); return { name: s.name, cls: s.cls, pct: Math.round(avg(s) * 100), weakChapter: w ? prettyChapter_(w.chapter) : null }; });
+  const quiet = Object.values(studs).filter(function (s) { return now - new Date(s.last).getTime() >= DIGEST_WINDOW_DAYS * 864e5; })
+    .sort(function (a, b) { return new Date(a.last) - new Date(b.last); }).slice(0, DIGEST_TOP_N)
+    .map(function (s) { return { name: s.name, cls: s.cls, lastSeen: s.last }; });
+
+  // per-chapter: this week's quiz average, to flag what to re-teach --
+  // same two-tier suggestion text the in-app Teacher Action Centre uses.
+  const chapters = {};
+  windowRows.forEach(function (r) {
+    if (r.event !== 'quiz') return;
+    const c = chapters[r.chapter] || (chapters[r.chapter] = { vals: [] });
+    c.vals.push((+r.score) / (+r.total || 1));
+  });
+  const weak = Object.keys(chapters).map(function (id) {
+    const vals = chapters[id].vals;
+    const pct = Math.round(vals.reduce(function (a, b) { return a + b; }, 0) / vals.length * 100);
+    return { id: id, label: prettyChapter_(id), n: vals.length, pct: pct };
+  }).filter(function (c) { return c.n >= DIGEST_MIN_QUIZZES && c.pct < DIGEST_OK * 100; })
+    .sort(function (a, b) { return a.pct - b.pct; }).slice(0, DIGEST_TOP_N)
+    .map(function (c) {
+      c.action = c.pct < 40
+        ? 'Re-teach this topic from the start, then use the chapter’s tip cards and a short pair activity.'
+        : 'Quick recap at the start of the next lesson, then 2–3 solved questions in pairs.';
+      return c;
+    });
+
+  return {
+    subjectName: subjectName || '',
+    windowDays: DIGEST_WINDOW_DAYS,
+    quizzesThisWeek: windowRows.filter(function (r) { return r.event === 'quiz'; }).length,
+    activeThisWeek: Object.keys(studs).filter(function (k) { return windowRows.some(function (r) { return keyOfRow_(r) === k; }); }).length,
+    top: top, needHelp: needHelp, weak: weak, quiet: quiet
+  };
+}
+
+function digestSection_(title, rows, renderRow, emptyMsg) {
+  if (!rows.length) return '<p style="color:#667;margin:4px 0 16px">' + emptyMsg + '</p>';
+  return '<h3 style="margin:18px 0 6px">' + title + '</h3><ul style="margin:0 0 16px;padding-left:20px">' + rows.map(renderRow).join('') + '</ul>';
+}
+
+function digestHtml_(label, d) {
+  const esc = function (s) { return String(s == null ? '' : s).replace(/[&<>]/g, function (c) { return c === '&' ? '&amp;' : c === '<' ? '&lt;' : '&gt;'; }); };
+  const header = '<h2 style="margin:0 0 4px">📊 DigiClass weekly digest' + (label ? ' · ' + esc(label) : '') + '</h2>'
+    + '<p style="color:#667;margin:0 0 18px">Last ' + d.windowDays + ' days · ' + d.quizzesThisWeek + ' quiz attempt' + (d.quizzesThisWeek === 1 ? '' : 's') + ' from ' + d.activeThisWeek + ' active student' + (d.activeThisWeek === 1 ? '' : 's') + '.</p>';
+  const topHtml = digestSection_('🏆 Top performers', d.top,
+    function (s) { return '<li><b>' + esc(s.name) + '</b> (Grade ' + esc(s.cls) + ') — averaging ' + s.pct + '%</li>'; },
+    'No student averaged 85%+ this week yet.');
+  const helpHtml = digestSection_('⚠️ Students who need support', d.needHelp,
+    function (s) { return '<li><b>' + esc(s.name) + '</b> (Grade ' + esc(s.cls) + ') — averaging ' + s.pct + '%' + (s.weakChapter ? ', weakest on <i>' + esc(s.weakChapter) + '</i>' : '') + '</li>'; },
+    '✅ No student is averaging below 60% this week.');
+  const weakHtml = digestSection_('📌 Topics to re-teach', d.weak,
+    function (c) { return '<li><b>' + esc(c.label) + '</b> — ' + c.pct + '% understood (' + c.n + ' attempt' + (c.n === 1 ? '' : 's') + ')<br><small style="color:#667">' + esc(c.action) + '</small></li>'; },
+    '✅ No topic is below 60% understood this week.');
+  const quietHtml = digestSection_('😴 Gone quiet (' + d.windowDays + '+ days inactive)', d.quiet,
+    function (s) { return '<li>' + esc(s.name) + ' (Grade ' + esc(s.cls) + ')</li>'; },
+    'Everyone’s been active in the last ' + d.windowDays + ' days.');
+  const footer = '<p style="color:#99a;font-size:12px;margin-top:20px">Sent automatically by DigiClass. Open “My Class (live)” in DigiClass Teach for the full picture, filters, and comments.</p>';
+  return '<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px">' + header + topHtml + helpHtml + weakHtml + quietHtml + footer + '</div>';
+}
+
+// The trigger's entry point -- wire this up under Triggers (see the setup
+// note above). Sends one digest to TEACHER_EMAIL covering every subject,
+// plus one more (filtered to just her subject) to each SUBJECT_TEACHERS
+// entry that has its own "email" set.
+function sendWeeklyPerformanceReport() {
+  const sent = [];
+  if (TEACHER_EMAIL) {
+    const d = buildDigest_('');
+    MailApp.sendEmail({ to: TEACHER_EMAIL, subject: 'DigiClass weekly digest', htmlBody: digestHtml_('', d) });
+    sent.push(TEACHER_EMAIL);
+  }
+  SUBJECT_TEACHERS.forEach(function (st) {
+    if (!st.email) return;
+    const d = buildDigest_(st.subjectName);
+    MailApp.sendEmail({ to: st.email, subject: 'DigiClass weekly digest · ' + st.subjectName, htmlBody: digestHtml_(st.subjectName, d) });
+    sent.push(st.email);
+  });
+  return sent;
 }
