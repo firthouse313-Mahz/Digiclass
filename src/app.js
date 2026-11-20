@@ -2476,11 +2476,20 @@ const CLS = (()=>{
   function classPanel(){
     const m = me(); if(!m || !m.name) return joinCard("me");
     const {pts,badges} = points(), got = badges.filter(b=>b[3]);
+    // Students who joined before the email field existed on "Join your
+    // class" never see that screen again (it's a one-time step), so they'd
+    // otherwise have no way to ever supply one. This offers it here too,
+    // on the dashboard they DO see every time, until an email is on file.
+    const emailPrompt = m.email ? "" : `<form class="mc-email" data-addemail>
+        <label>📧 Add an email (yours or a parent's) for a weekly progress update<input name="email" type="email" maxlength="80" autocomplete="email" placeholder="e.g. parent@example.com"></label>
+        <button class="btn primary" type="submit">Save</button>
+      </form>`;
     return `<section class="myclass reveal" aria-label="My class">
       <div class="mc-top"><div class="mc-av" aria-hidden="true">${esc(m.name.slice(0,1).toUpperCase())}</div>
         <div class="mc-id"><b>${esc(m.name)}</b><span>${esc((DC_CLASS.sections.find(s=>s.id===m.classId)||{}).label||("Grade "+m.cls))} ${EP?"· ✅ connected to your teacher":"· saved on this device"}</span></div>
         <div class="mc-pts"><b>${pts}</b><span>points</span></div>
         <button class="btn" data-logout title="Log out of DigiClass">🚪 Log out</button></div>
+      ${emailPrompt}
       <div class="mc-badges">${badges.map(b=>`<span class="badge2 ${b[3]?"got":""}" title="${esc(b[2])}"><i aria-hidden="true">${b[0]}</i><b>${esc(b[1])}</b><small>${esc(b[2])}</small></span>`).join("")}</div>
       <p class="mc-note">${got.length} of ${badges.length} badges earned. Earn points by reading chapters (+2), finishing them (+10), quizzes (+5 each, +1 per correct answer), topic checks (+2 each right answer), mock papers (+25) and daily streaks (+3 a day).</p>
     </section>`;
@@ -2713,6 +2722,11 @@ const CLS = (()=>{
       send("join",{email}); toast(`Welcome, ${name}! 🎉`); const go=e.submitter&&e.submitter.dataset.go; if(go){ location.hash=go; } else rerender(); return; }
     const tp=e.target.closest("[data-tpin]");
     if(tp){ e.preventDefault(); const msg=$("tpinMsg"); msg.textContent="Loading…"; loadTD(tp.pin.value.trim(), err=>{ if(err) msg.textContent=err; else rerender(); }); }
+    const ae=e.target.closest("[data-addemail]");
+    if(ae){ e.preventDefault(); const email=(ae.email.value||"").trim().slice(0,80);
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ toast("That email doesn't look right."); return; }
+      const m=me(); if(!m) return;
+      store.set(K.me,Object.assign({},m,{email})); send("join",{email}); toast("Saved 🎉"); rerender(); return; }
   });
   if(EP && store.get(K.pin,"") && location.hash.startsWith("#/teacher")) loadTD(store.get(K.pin,""), err=>{ if(!err) rerender(); });
 
