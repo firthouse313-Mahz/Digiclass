@@ -1,7 +1,7 @@
 // =====================================================================
 // DigiClass – class sheet script (with DigiClass Teach lesson keys)
 // Paste ALL of this into: Google Sheet → Extensions → Apps Script
-// Then: Deploy → Manage deployments → ✏️ Edit → Version: New version → Deploy
+// Then: Deploy → Manage deployments → Edit → Version: New version → Deploy
 // (first time: Deploy → New deployment → Web app → Execute as: Me,
 //  Who has access: Anyone → Deploy → copy the Web app URL.)
 //
@@ -986,24 +986,24 @@ function digestSection_(title, rows, renderRow, emptyMsg) {
 
 function digestHtml_(label, d) {
   const esc = function (s) { return String(s == null ? '' : s).replace(/[&<>]/g, function (c) { return c === '&' ? '&amp;' : c === '<' ? '&lt;' : '&gt;'; }); };
-  const header = '<h2 style="margin:0 0 4px">📊 DigiClass weekly digest' + (label ? ' · ' + esc(label) : '') + '</h2>'
+  const header = '<h2 style="margin:0 0 4px">DigiClass weekly digest' + (label ? ' · ' + esc(label) : '') + '</h2>'
     + '<p style="color:#667;margin:0 0 18px">Last ' + d.windowDays + ' days · ' + d.quizzesThisWeek + ' quiz attempt' + (d.quizzesThisWeek === 1 ? '' : 's') + ' from ' + d.activeThisWeek + ' active student' + (d.activeThisWeek === 1 ? '' : 's') + '.</p>';
-  const topHtml = digestSection_('🏆 Top performers', d.top,
+  const topHtml = digestSection_('Top performers', d.top,
     function (s) { return '<li><b>' + esc(s.name) + '</b> (Grade ' + esc(s.cls) + ') — averaging ' + s.pct + '%</li>'; },
     'No student averaged 85%+ this week yet.');
   const helpHtml = digestSection_('⚠️ Students who need support', d.needHelp,
     function (s) { return '<li><b>' + esc(s.name) + '</b> (Grade ' + esc(s.cls) + ') — averaging ' + s.pct + '%' + (s.weakChapter ? ', weakest on <i>' + esc(s.weakChapter) + '</i>' : '') + '</li>'; },
     '✅ No student is averaging below 60% this week.');
-  const weakHtml = digestSection_('📌 Topics to re-teach', d.weak,
+  const weakHtml = digestSection_('Topics to re-teach', d.weak,
     function (c) { return '<li><b>' + esc(c.label) + '</b> — ' + c.pct + '% understood (' + c.n + ' attempt' + (c.n === 1 ? '' : 's') + ')<br><small style="color:#667">' + esc(c.action) + '</small></li>'; },
     '✅ No topic is below 60% understood this week.');
   // "Ready" is from the mastery model (whole history, not just this week), so
   // it's only shown when there's something to say -- no "nobody's ready yet"
   // noise on a normal week.
-  const readyHtml = (d.ready && d.ready.length) ? digestSection_('🧠 Ready for a challenge', d.ready,
+  const readyHtml = (d.ready && d.ready.length) ? digestSection_('Ready for a challenge', d.ready,
     function (r) { return '<li><b>' + esc(r.name) + '</b> (Grade ' + esc(r.cls) + ') — mastered <i>' + esc(r.chapter) + '</i> (' + r.pct + '% estimated) · DigiClass will start offering harder Challenge-level questions on this topic.</li>'; },
     '') : '';
-  const quietHtml = digestSection_('😴 Gone quiet (' + d.windowDays + '+ days inactive)', d.quiet,
+  const quietHtml = digestSection_('Gone quiet (' + d.windowDays + '+ days inactive)', d.quiet,
     function (s) { return '<li>' + esc(s.name) + ' (Grade ' + esc(s.cls) + ')</li>'; },
     'Everyone’s been active in the last ' + d.windowDays + ' days.');
   const footer = '<p style="color:#99a;font-size:12px;margin-top:20px">Sent automatically by DigiClass. Open “My Class (live)” in DigiClass Teach for the full picture, filters, and comments.</p>';
@@ -1068,17 +1068,16 @@ function parentRows_() {
 
 function parentDigestHtml_(studentName, chapters) {
   const esc = function (s) { return String(s == null ? '' : s).replace(/[&<>]/g, function (c) { return c === '&' ? '&amp;' : c === '<' ? '&lt;' : '&gt;'; }); };
-  const tierIcon = { 'Strong': '💪', 'Developing': '📈', 'Needs practice': '🔁' };
   const rows = chapters.map(function (c) {
-    return '<li>' + (tierIcon[c.tier] || '') + ' <b>' + esc(c.label) + '</b> — ' + c.tier + ' (' + c.pct + '% estimated mastery, ' + c.n + ' attempt' + (c.n === 1 ? '' : 's') + ')</li>';
+    return '<li><b>' + esc(c.label) + '</b> — ' + c.tier + ' (' + c.pct + '% estimated mastery, ' + c.n + ' attempt' + (c.n === 1 ? '' : 's') + ')</li>';
   }).join('');
   const weakest = chapters[0]; // sorted ascending by mastery
   const strongest = chapters[chapters.length - 1];
   const focus = (weakest && weakest.tier !== 'Strong')
     ? '<p><b>This week, it would help most to focus on:</b> ' + esc(weakest.label) + '.</p>' : '';
   const challenge = (strongest && strongest.tier === 'Strong')
-    ? '<p>🧠 ' + esc(studentName) + ' has mastered <b>' + esc(strongest.label) + '</b> — DigiClass will start offering ' + esc(studentName) + ' harder Challenge-level questions on this topic.</p>' : '';
-  const header = '<h2 style="margin:0 0 4px">📘 ' + esc(studentName) + '’s Computer Science update</h2>'
+    ? '<p>' + esc(studentName) + ' has mastered <b>' + esc(strongest.label) + '</b> — DigiClass will start offering ' + esc(studentName) + ' harder Challenge-level questions on this topic.</p>' : '';
+  const header = '<h2 style="margin:0 0 4px">' + esc(studentName) + '’s Computer Science update</h2>'
     + '<p style="color:#667;margin:0 0 18px">Estimated topic-by-topic understanding from DigiClass’s learning model, which updates as ' + esc(studentName) + ' answers more quiz questions.</p>';
   const list = '<ul style="margin:0 0 16px;padding-left:20px">' + rows + '</ul>';
   const footer = '<p style="color:#99a;font-size:12px;margin-top:20px">These are estimates from practice-quiz answers, not exam grades, and improve with more practice. Sent automatically, weekly, by DigiClass.</p>';
