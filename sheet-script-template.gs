@@ -341,6 +341,11 @@ function doGet(e) {
   if (a === 'claim') {
     const nameRaw = String(p.name || '').slice(0, 40), pin = String(p.pin || '').trim();
     const nameNorm = norm_(nameRaw);
+    // Optional, typed right on the login screen (yours or a parent's) -- saved into
+    // "Parent Contacts" below, the same sheet the weekly parent update reads from.
+    // A blank value here never erases an email saved earlier (upsert only runs on a
+    // real-looking address), so re-logging in with it left blank is always safe.
+    const email = String(p.email || '').trim().slice(0, 80);
     if (!nameNorm || pin.length < 4) return out_({ error: 'short' });
     const cache = CacheService.getScriptCache();
     const failKey = 'pf_' + nameNorm;
@@ -356,6 +361,7 @@ function doGet(e) {
         const hash = hashPin_(pin, salt);
         const sid = Utilities.getUuid().slice(0, 8);
         sh.appendRow([nameRaw, salt, hash, sid, clean_(p.cls, 5), clean_(p.sub, 25), clean_(p.g, 5), new Date()]);
+        if (looksLikeEmail_(email)) upsertParentContact_(sid, nameRaw, email.toLowerCase());
         lock.releaseLock();
         return out_({ ok: true, sid: sid, created: true });
       }
@@ -363,6 +369,7 @@ function doGet(e) {
       const salt = vals[1], hash = vals[2], sid = vals[3];
       if (hashPin_(pin, salt) === hash) {
         cache.remove(failKey);
+        if (looksLikeEmail_(email)) upsertParentContact_(sid, nameRaw, email.toLowerCase());
         lock.releaseLock();
         return out_({ ok: true, sid: sid, created: false });
       }

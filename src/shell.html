@@ -3233,6 +3233,9 @@ body.present #dc-tmr .dcq-tm{font-size:3rem}
         <button type="button" class="lp-pineye" id="dcgPSEye" aria-label="Show PIN" aria-pressed="false"><svg class="dicn" viewBox="0 0 22 22" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.2em;flex:none" aria-hidden="true"><path d="M2.5 11S5.8 5.5 11 5.5 19.5 11 19.5 11 16.2 16.5 11 16.5 2.5 11 2.5 11z"/><circle cx="11" cy="11" r="2.6"/></svg></button>
       </div>
       <small class="lp-s-note">First time: pick any 4+ digit PIN &mdash; like a locker code. This computer will remember your name and PIN after that, so you won't need to type them again here. Forgot it? Tap the eye icon to see the PIN saved on this device. Don't tell classmates your PIN.</small>
+      <label for="dcgEM">Email (yours or a parent's) &mdash; optional</label>
+      <input id="dcgEM" name="em" type="email" autocomplete="email" maxlength="80" placeholder="e.g. parent@example.com">
+      <small class="lp-s-note">For a weekly progress update. Leave blank to skip &mdash; you can add it later from your dashboard.</small>
     </div>
     <div class="lp-t" hidden>
       <label for="dcgTN">Your name</label>
@@ -3368,6 +3371,7 @@ html.dc-opening #dcGate::before{content:'Opening DigiClass…';position:fixed;in
         fme.nm.value=me.name;
         if(me.classId && fme.sec) fme.sec.value=me.classId;
         if(me.pin && fme.ps) fme.ps.value=me.pin;
+        if(me.email && fme.em) fme.em.value=me.email;
         var nm=document.getElementById("dcgNotMe"); if(nm) nm.hidden=false;
       }
     }catch(e){}
@@ -3376,6 +3380,7 @@ html.dc-opening #dcGate::before{content:'Opening DigiClass…';position:fixed;in
     try{ localStorage.removeItem("dc-me"); }catch(e){}
     fme.nm.value=""; if(fme.sec) fme.sec.value="";
     if(fme.ps) fme.ps.value="";
+    if(fme.em) fme.em.value="";
     var nm=document.getElementById("dcgNotMe"); if(nm) nm.hidden=true;
     fme.nm.focus();
   }
@@ -3422,13 +3427,15 @@ html.dc-opening #dcGate::before{content:'Opening DigiClass…';position:fixed;in
         if(!secId||!cls||!sub){ m.textContent="Please choose your class."; btn.disabled=false; return; }
         var pin=(document.getElementById("dcgPS").value||"").trim();
         if(pin.length<4){ m.textContent="Pick a PIN of at least 4 digits — you'll use the same one every time."; btn.disabled=false; document.getElementById("dcgPS").focus(); return; }
+        var email=(document.getElementById("dcgEM").value||"").trim().slice(0,80);
+        if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ m.textContent="That email doesn't look right — leave it blank to skip it for now."; btn.disabled=false; document.getElementById("dcgEM").focus(); return; }
         name=name.replace(/(^|\s)\S/g,function(c){return c.toUpperCase();});
         try{
-          var jc=await (await fetch(EP+"?action=claim&name="+encodeURIComponent(name)+"&pin="+encodeURIComponent(pin)+"&cls="+encodeURIComponent(cls)+"&sub="+encodeURIComponent(sub)+"&g="+encodeURIComponent(g)+"&t="+Date.now())).json();
+          var jc=await (await fetch(EP+"?action=claim&name="+encodeURIComponent(name)+"&pin="+encodeURIComponent(pin)+"&cls="+encodeURIComponent(cls)+"&sub="+encodeURIComponent(sub)+"&g="+encodeURIComponent(g)+"&email="+encodeURIComponent(email)+"&t="+Date.now())).json();
           if(jc.error==="pin"){ m.textContent="That PIN doesn't match "+name+". If this is really you, check your PIN with your teacher. If it isn't you, pick a different name/spelling."; btn.disabled=false; document.getElementById("dcgPS").focus(); return; }
           if(jc.error==="busy"){ m.textContent="Too many wrong PIN tries for this name. Wait 10 minutes and try again."; btn.disabled=false; return; }
           if(!jc.ok){ m.textContent="Couldn't check your PIN. Check your internet and try again."; btn.disabled=false; return; }
-          localStorage.setItem("dc-me",JSON.stringify({name:name,cls:cls,g:g,sub:sub,classId:secId,sid:jc.sid,pin:pin}));
+          localStorage.setItem("dc-me",JSON.stringify({name:name,cls:cls,g:g,sub:sub,classId:secId,sid:jc.sid,pin:pin,email:email}));
           localStorage.setItem("dc-seen",String(Date.now()));
           localStorage.setItem(SK,JSON.stringify({kid:KID,k:j.key})); sessionStorage.setItem("dc-login","1"); sessionStorage.setItem("dc-session","1");
         }catch(err){ m.textContent="Couldn't check your PIN. Check your internet and try again."; btn.disabled=false; return; }
