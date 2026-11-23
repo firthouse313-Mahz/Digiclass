@@ -1165,6 +1165,16 @@ const quizOf = id => CHBY[id] && CHBY[id].course.quiz[id];
 const bankOf = id => { const ch=CHBY[id]; const x=ch&&typeof EXTRA!=="undefined"&&EXTRA[ch.course.id]; return (x&&x.bank&&x.bank[id])||[]; };
 const paperOf = (cid,pid) => { if(pid) return (typeof EXTRA!=="undefined"&&EXTRA[cid]&&EXTRA[cid].papers||[]).find(p=>p.id===pid)||null; return (typeof EXTRA!=="undefined"&&EXTRA[cid]&&EXTRA[cid].paper)||null; };
 const papersOf = cid => (typeof EXTRA!=="undefined"&&EXTRA[cid]&&EXTRA[cid].papers)||null;
+// Every unit-wise practice paper's id follows "<courseId>-u<unitNumber>" or
+// "<courseId>-u<unitNumber>-2"/"-3" for a second/third paper on that same
+// unit (see EXTRA.*.papers) -- this finds all of a unit's papers from that
+// convention, so unitBlock() below can link straight to them without a
+// separate unit->paper map to keep in sync by hand.
+function unitPapers(c,u){
+  const PS = papersOf(c.id); if(!PS) return [];
+  const re = new RegExp("^"+c.id.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"-u"+u+"(-\\d+)?$");
+  return PS.filter(p=>re.test(p.id)).sort((a,b)=>a.id.localeCompare(b.id,undefined,{numeric:true}));
+}
 const bankCount = c => c.chapters.reduce((n,ch)=>n+bankOf(ch.id).length,0);
 const quizCount = c => Object.values(c.quiz).reduce((n,q)=>n+q.length,0);
 function qaList(items, startNo, cid){
@@ -1278,9 +1288,23 @@ function chRow(ch, showCourse){
 function unitBlock(c,u){
   const list = c.chapters.filter(ch=>ch.unit===u);
   const d = list.filter(ch=>done.has(ch.id)).length;
+  const papers = unitPapers(c,u);
+  // Straight from the unit itself to that unit's practice paper(s) --
+  // each attempt feeds the mastery model (see "send" hook on
+  // [data-psubmit]), so finishing the chapters and then this paper is
+  // what actually moves this unit's estimated mastery, not just reading.
+  const papersHtml = papers.length ? `<div class="unit-list unit-papers">${papers.map((p,i)=>{
+  const total=p.sections.reduce((n,s)=>n+s.qs.reduce((m,q)=>m+q.m,0),0);
+  return `<button class="chrow paper-row" data-paper="${c.id}" data-pid="${p.id}" style="--uc:${UC(u)}">
+  <span class="chnum">${total}</span>
+  <span class="chbody"><span class="chtitle">${IC.clock}Practice paper${i?` ${i+1}`:""}</span><span class="chmeta">${esc(paperStatus(c,p.id))}</span></span>
+  <span class="qgo">${IC.arrow}</span>
+  </button>`;
+  }).join("")}</div>` : "";
   return `<section class="unit reveal" style="--uc:${UC(u)}">
   <div class="unit-head"><span class="u-tag">Unit ${u}</span><h2>${esc(c.units[u].short)}</h2><span class="u-meta">${c.units[u].marks} marks · ${d}/${list.length} done</span></div>
-  <div class="unit-list">${list.map(ch=>chRow(ch)).join("")}</div></section>`;
+  <div class="unit-list">${list.map(ch=>chRow(ch)).join("")}</div>
+  ${papersHtml}</section>`;
 }
 function subjectTile(s){
   const cs = COURSES.filter(c=>c.subjectId===s.id);
@@ -2726,7 +2750,25 @@ const CLS = (()=>{
   const d=e.target.closest("[data-done]");
   if(d){ const id=d.dataset.done; setTimeout(()=>{ const ch=CHBY[id]; if(ch) send(done.has(id)?"done":"undone",{course:ch.course.id, chapter:id}); },0); }
   const ps=e.target.closest("[data-psubmit]");
-  if(ps){ const cid=ps.dataset.psubmit; setTimeout(()=>{ const st=pState(cid); if(st.sub){ const sc=paperScore(cid), tot=flatQs(paperOf(cid)).reduce((n,q)=>n+q.m,0); once(`paper:${cid}:${st.start}`, ()=>send("paper",{course:cid, score:sc.got, total:tot})); } },50); }
+  if(ps){
+  const cid=ps.dataset.psubmit, pid=view.paper||null; // view.paper, not just cid -- a course can have several papers, and the wrong one's saved state was being read here before
+  setTimeout(()=>{
+  const st=pState(cid,pid); if(!st.sub) return;
+  const P=paperOf(cid,pid), qs=flatQs(P), sc=paperScore(cid,pid), tot=qs.reduce((n,q)=>n+q.m,0);
+  once(`paper:${cid}:${pid||""}:${st.start}`, ()=>{
+  send("paper",{course:cid, chapter:pid||cid, score:sc.got, total:tot});
+  // A unit paper's auto-marked MCQs are just as clean a right/wrong
+  // signal as a chapter quiz or practice-bank "code" question, so feed
+  // each one into the same mastery model those already feed (see
+  // bktMastery_ in sheet-script-template.gs, which reads every "quiz"
+  // and "code" event) -- keyed by this paper's own id, since one paper
+  // spans a whole unit rather than a single chapter. This is what lets
+  // taking the unit's practice paper actually move its estimated
+  // mastery, not just chapter quizzes.
+  qs.forEach((q,k)=>{ if(q.o) send("code",{course:cid, chapter:pid||cid, score:st.ans[k]===q.a?1:0, total:1}); });
+  });
+  },50);
+  }
   if(e.target.closest("[data-logout]")){ studentLogout(); return; }
   if(e.target.closest("[data-leave]")){ if(confirm("Change your name or class on this device?")){ store.set(K.me,null); rerender(); } }
   if(e.target.closest("[data-trefresh]")){ loadTD(store.get(K.pin,""), err=>{ if(err) toast(err); else { toast("Updated ✓"); rerender(); } }); }

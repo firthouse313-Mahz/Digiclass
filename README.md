@@ -239,14 +239,47 @@ than the full BKT model above — the two are complementary: one reacts
 inside the app right away, the other builds the longer-term picture the
 teacher and parents see.
 
-### For the dissertation: `research/bkt_eval.py`
+### Unit practice papers feed the mastery model too
 
-A standalone Python script (no Apps Script, no Google Sheet needed to
-run it) that fits BKT parameters properly via EM (Baum–Welch) against
-real quiz-attempt sequences and evaluates the fit — held-out prediction
-accuracy, log-loss, and a calibration check — instead of just asserting
-the hand-picked constants above are reasonable. Run it with no arguments
-to see it work on a built-in synthetic dataset; point it at a CSV
-exported from an "Activity - Computer Science" sheet to fit and
-evaluate against real student data. See the comment at the top of the
-file for the exact CSV columns expected and how to export one.
+Every unit listing (`unitBlock()` in `src/app.js`) now links straight to
+that unit's practice paper(s) — found automatically from the paper id
+convention `<courseId>-u<unitNumber>`, `-2`, `-3` (see `unitPapers()`),
+so a new paper needs no separate unit→paper map kept in sync by hand.
+On submission, every auto-marked MCQ in the paper (not just the overall
+score) is sent as its own "code" event, keyed by that paper's id — the
+same clean right/wrong signal a chapter quiz or practice-bank question
+already gives `bktMastery_()` in `sheet-script-template.gs`. That means
+finishing a unit's practice paper now actually moves its estimated
+mastery, the same way finishing its chapter quizzes does, rather than
+only producing a one-off aggregate score. (A unit paper spans several
+chapters, so its mastery estimate is keyed by the paper's own id, not
+folded into one specific chapter's number.)
+
+### For the dissertation: `research/bkt_eval.py` and `research/early_predict.py`
+
+`research/bkt_eval.py` is a standalone Python script (no Apps Script, no
+Google Sheet needed to run it) that fits BKT parameters properly via EM
+(Baum–Welch) against real quiz-attempt sequences and evaluates the fit —
+held-out prediction accuracy, log-loss, and a calibration check —
+instead of just asserting the hand-picked constants above are
+reasonable. Run it with no arguments to see it work on a built-in
+synthetic dataset; point it at a CSV exported from an "Activity -
+Computer Science" sheet to fit and evaluate against real student data.
+See the comment at the top of the file for the exact CSV columns
+expected and how to export one.
+
+`research/early_predict.py` is the companion script for the
+dissertation's *early-prediction* half (the BKT model above is the
+*adaptive-feedback* half): it asks whether a student's first 3 attempts
+on a chapter (or now, a unit paper) can predict whether they'll
+eventually need practice on it — using the live BKT model's own
+eventual verdict as the label, so the "ground truth" is literally what
+the deployed model would eventually say, not a separately invented
+target. It cross-validates a small from-scratch logistic regression
+against two honest baselines (always guess the majority label; just
+threshold BKT's own early-window estimate) — same zero-dependency,
+synthetic-self-test style as `bkt_eval.py`. Run with no arguments for
+the self-test, or point it at the same Activity CSV `bkt_eval.py` uses.
+See the file's own docstring for the exact feature/label definitions
+and why `EARLY_K=3` was chosen (and why that choice should be reported,
+not assumed).
