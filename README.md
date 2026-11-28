@@ -182,11 +182,21 @@ This feeds two things:
 1. **The teacher digest's "Ready for a challenge" section** above — any
    student the model now rates "Strong" (≥75% estimated mastery, with
    enough attempts to trust it) on a chapter.
-2. **A weekly email per student, sent to that student's parent** — what
-   the model estimates they currently understand well, what needs more
-   practice, and the one topic to focus on this week. The address comes
-   from a **"Parent Contacts"** sheet (`Student ID | Student Name |
-   Parent Email`, created automatically), filled in two ways:
+2. **A weekly coaching email per student, addressed directly to them**
+   ("Hi \<name\>, here's your weekly update...") — what the model estimates
+   they currently understand well, what needs more practice, and a
+   specific study strategy for the one topic to focus on this week.
+   That strategy is no longer a templated sentence: `aiStudyTip_()` asks
+   the **DigiClass AI tutor worker** (`ai-worker/`, the same
+   syllabus-grounded RAG agent behind the homepage chat widget — see
+   `ai-worker/README.md`) to write it, so the tip is specific to that
+   exact topic and grounded in the real syllabus content the worker
+   retrieves, not generic "practice more" advice. If the worker call
+   fails or times out, the email still sends, falling back to a plain
+   templated sentence rather than going out blank or not at all. The
+   address comes from a **"Parent Contacts"** sheet (`Student ID |
+   Student Name | Parent Email`, created automatically), filled in two
+   ways:
    - **Automatically**, from the "Join your class" screen itself: every
      student now sees an optional "Email (yours or a parent's)" field.
      If they fill it in, `doPost` saves it straight into "Parent

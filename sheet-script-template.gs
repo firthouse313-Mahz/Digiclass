@@ -70,6 +70,15 @@ const BKT_STRONG = 0.75;         // mastery at/above this = "Strong" / ready for
 const BKT_NEEDS_PRACTICE = 0.4;  // mastery below this = "Needs practice"
 const BKT_MIN_ATTEMPTS = 2;      // ignore a chapter with fewer quiz attempts than this -- too little data to judge
 
+// The DigiClass AI tutor -- the same syllabus-grounded (RAG) Cloudflare
+// Worker behind the "DigiClass AI" chat widget on the homepage (see
+// ai-worker/README.md). The weekly student coaching email below calls its
+// public chat endpoint (POST /, {question, history} -> {answer, sources})
+// to turn a bare "needs practice on X" flag into a specific, syllabus-
+// grounded study strategy, instead of a one-line templated sentence. No
+// admin key needed here -- that's only required for /reindex.
+const AI_WORKER_URL = 'https://digiclass-ai.firthouse313.workers.dev/';
+
 const ACTIVITY_HEADERS = ['Time', 'Name', 'Class', 'Event', 'Course', 'Chapter', 'Score', 'Total', 'Student ID', 'Boy/Girl', 'Subject', 'Answer', 'Class ID'];
 const FEEDBACK_HEADERS = ['Time', 'Name', 'Class', 'Type', 'Reason', 'Message', 'Page', 'About', 'Student ID', 'Boy/Girl', 'Subject', 'Class ID'];
 // Each student picks their own PIN the first time they log in. Only a salted hash is stored here —
@@ -1038,14 +1047,29 @@ function sendWeeklyPerformanceReport() {
 }
 
 // =====================================================================
-// Weekly parent update -- one email PER STUDENT, sent to that student's
-// parent, built from the same mastery model (see "Adaptive mastery model"
-// above): what the model currently estimates they understand well, what
-// needs more practice, and which one topic to focus on this week.
+// Weekly student coaching email -- one email PER STUDENT, addressed
+// directly to them ("you"), built from the same mastery model (see
+// "Adaptive mastery model" above): what the model currently estimates
+// they understand well, what needs more practice, and -- the part that
+// used to be one static templated sentence -- a specific, syllabus-
+// grounded study strategy for their weakest topic, written by the
+// DigiClass AI tutor worker (see AI_WORKER_URL above and
+// ai-worker/README.md), not a hand-written template. If that call fails
+// or times out, aiStudyTip_() returns null and sendWeeklyParentReports()
+// falls back to a plain templated sentence, so a worker hiccup never
+// blocks the email going out.
 //
-// DigiClass has no parent sign-up flow, so there's one extra manual step:
-// a small "Parent Contacts" sheet (created automatically the first time
-// this runs) mapping each Student ID to a parent email address.
+// The recipient is whatever email is on file in "Parent Contacts" for
+// that student -- the student's own, or a parent's, exactly as they (or
+// a parent) typed it into the optional "Email" field on the login screen
+// (see upsertParentContact_ above). The email content itself now speaks
+// to the student in second person either way, since that's genuinely who
+// it's for, whether a parent reads it over their shoulder or not.
+//
+// DigiClass has no separate sign-up flow for this, so there's one extra
+// manual step for anyone who joined before the login screen's email
+// field existed: a small "Parent Contacts" sheet (created automatically
+// the first time this runs) mapping each Student ID to an email address.
 //
 // One-time setup:
 //   1. Open the "Students" sheet and note each student's Student ID.
@@ -1073,21 +1097,63 @@ function parentRows_() {
     .filter(function (r) { return r.sid && r.email; });
 }
 
-function parentDigestHtml_(studentName, chapters) {
+// Asks the DigiClass AI tutor worker for a short, specific, encouraging
+// study strategy for one student's weakest topic -- grounded in the real
+// syllabus content, since the worker's own retrieval step looks up the
+// nearest matching chapter chunks before answering (see
+// ai-worker/src/index.js). Returns null (never throws) on any failure --
+// network error, non-200, malformed JSON, or an unexpectedly short/empty
+// answer -- so a worker outage degrades to the plain template rather than
+// breaking the whole weekly batch.
+function aiStudyTip_(studentName, grade, chapterLabel, tier, pct) {
+  const question = 'Write a short, warm, encouraging study tip addressed directly to ' + studentName +
+    ', a Grade ' + grade + ' Computer Science student. Based on recent practice, they are at the "' + tier +
+    '" level (about ' + pct + '% estimated mastery) on the topic "' + chapterLabel + '". ' +
+    'Give exactly 2-3 specific, practical things to do this week to improve on THIS topic -- not generic advice ' +
+    'like "practice more" -- grounded in what is actually taught about it. Speak to them as "you". ' +
+    'Keep it under 100 words, no greeting or sign-off, just the tips.';
+  try {
+    const resp = UrlFetchApp.fetch(AI_WORKER_URL, {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify({ question: question, history: [] }),
+      muteHttpExceptions: true,
+      // The worker runs its own embedding + Vectorize lookup + generation
+      // calls in series -- comfortably under a normal page load, but
+      // slower than a typical API call, so this mirrors the widget's own
+      // patience rather than a short default timeout.
+      followRedirects: true,
+    });
+    if (resp.getResponseCode() !== 200) return null;
+    const data = JSON.parse(resp.getContentText());
+    const answer = String(data.answer || '').trim();
+    return answer.length >= 20 ? answer : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+function parentDigestHtml_(studentName, chapters, aiTip) {
   const esc = function (s) { return String(s == null ? '' : s).replace(/[&<>]/g, function (c) { return c === '&' ? '&amp;' : c === '<' ? '&lt;' : '&gt;'; }); };
   const rows = chapters.map(function (c) {
     return '<li><b>' + esc(c.label) + '</b> — ' + c.tier + ' (' + c.pct + '% estimated mastery, ' + c.n + ' attempt' + (c.n === 1 ? '' : 's') + ')</li>';
   }).join('');
   const weakest = chapters[0]; // sorted ascending by mastery
   const strongest = chapters[chapters.length - 1];
+  // aiTip is the DigiClass AI tutor's own words (see aiStudyTip_ above);
+  // falls back to the previous plain sentence only if that call failed.
   const focus = (weakest && weakest.tier !== 'Strong')
-    ? '<p><b>This week, it would help most to focus on:</b> ' + esc(weakest.label) + '.</p>' : '';
+    ? '<div style="background:#f3f6ff;border-radius:10px;padding:14px 16px;margin:0 0 16px">'
+      + '<p style="margin:0 0 6px"><b>This week, focus on: ' + esc(weakest.label) + '</b></p>'
+      + '<p style="margin:0">' + (aiTip ? esc(aiTip).replace(/\n+/g, '<br>') : 'It would help most to go back over this topic and try a few more practice questions on it.') + '</p>'
+      + '</div>'
+    : '';
   const challenge = (strongest && strongest.tier === 'Strong')
-    ? '<p>' + esc(studentName) + ' has mastered <b>' + esc(strongest.label) + '</b> — DigiClass will start offering ' + esc(studentName) + ' harder Challenge-level questions on this topic.</p>' : '';
-  const header = '<h2 style="margin:0 0 4px">' + esc(studentName) + '’s Computer Science update</h2>'
-    + '<p style="color:#667;margin:0 0 18px">Estimated topic-by-topic understanding from DigiClass’s learning model, which updates as ' + esc(studentName) + ' answers more quiz questions.</p>';
+    ? '<p>You\'ve mastered <b>' + esc(strongest.label) + '</b> — DigiClass will start offering you harder Challenge-level questions on this topic.</p>' : '';
+  const header = '<h2 style="margin:0 0 4px">Hi ' + esc(studentName) + ', here\'s your weekly Computer Science update</h2>'
+    + '<p style="color:#667;margin:0 0 18px">Estimated topic-by-topic understanding from DigiClass’s learning model, which updates as you answer more quiz questions.</p>';
   const list = '<ul style="margin:0 0 16px;padding-left:20px">' + rows + '</ul>';
-  const footer = '<p style="color:#99a;font-size:12px;margin-top:20px">These are estimates from practice-quiz answers, not exam grades, and improve with more practice. Sent automatically, weekly, by DigiClass.</p>';
+  const footer = '<p style="color:#99a;font-size:12px;margin-top:20px">These are estimates from practice-quiz answers, not exam grades, and improve with more practice. The study tip above is written by the DigiClass AI tutor, grounded in your syllabus. Sent automatically, weekly, by DigiClass.</p>';
   return '<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px">' + header + list + focus + challenge + footer + '</div>';
 }
 
@@ -1102,8 +1168,12 @@ function sendWeeklyParentReports() {
       return { id: id, label: prettyChapter_(id), pct: Math.round(c.p * 100), tier: masteryTier_(c.p), n: c.n };
     }).filter(function (c) { return c.n >= BKT_MIN_ATTEMPTS; }).sort(function (a, b) { return a.pct - b.pct; });
     if (!chapters.length) return;
-    const studentName = pc.name || s.name || 'Your child';
-    const html = parentDigestHtml_(studentName, chapters);
+    const studentName = pc.name || s.name || 'there';
+    const weakest = chapters[0];
+    const aiTip = (weakest && weakest.tier !== 'Strong')
+      ? aiStudyTip_(studentName, s.cls || '', weakest.label, weakest.tier, weakest.pct)
+      : null;
+    const html = parentDigestHtml_(studentName, chapters, aiTip);
     MailApp.sendEmail({ to: pc.email, subject: studentName + '’s weekly Computer Science update · DigiClass', htmlBody: html });
     sent.push(pc.email);
   });
